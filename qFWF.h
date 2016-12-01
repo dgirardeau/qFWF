@@ -1,0 +1,68 @@
+//##########################################################################
+//#                                                                        #
+//#                     CLOUDCOMPARE PLUGIN: qCANUPO                       #
+//#                                                                        #
+//#  This program is free software; you can redistribute it and/or modify  #
+//#  it under the terms of the GNU General Public License as published by  #
+//#  the Free Software Foundation; version 2 or later of the License.      #
+//#                                                                        #
+//#  This program is distributed in the hope that it will be useful,       #
+//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+//#  GNU General Public License for more details.                          #
+//#                                                                        #
+//#                         COPYRIGHT: OSUR / CNRS                         #
+//#                                                                        #
+//##########################################################################
+
+#ifndef Q_FWF_PLUGIN_HEADER
+#define Q_FWF_PLUGIN_HEADER
+
+//qCC
+#include "../ccStdPluginInterface.h"
+
+class ccPointCloud;
+
+//! (LAS) Full Waveform plugin
+class qCanupoPlugin : public QObject, public ccStdPluginInterface
+{
+	Q_OBJECT
+	Q_INTERFACES(ccStdPluginInterface)
+	Q_PLUGIN_METADATA(IID "cccorp.cloudcompare.plugin.qFWF")
+
+public:
+
+	//! Default constructor
+	qCanupoPlugin(QObject* parent = 0);
+
+	//inherited from ccPluginInterface
+	virtual QString getName() const { return "FWF"; }
+	virtual QString getDescription() const { return "LAS Full-Waveform (CNRS/OSUR)"; }
+	virtual QIcon getIcon() const;
+
+	//inherited from ccStdPluginInterface
+	void onNewSelection(const ccHObject::Container& selectedEntities);
+	virtual void getActions(QActionGroup& group);
+
+protected slots:
+
+	void doConvertWFToCloudAction();
+	void doComputeOrthoWF();
+
+protected: //methods
+
+	//! Returns the selected cloud with FWF from the current selection (if any)
+	ccPointCloud* getCloudWithFWF();
+
+protected: //members
+
+	//! Convert waveform to cloud action
+	QAction* m_convertWFToCloudAction;
+	//! Compute ortho waveform
+	QAction* m_computeOrthoWF;
+
+	//! Currently selected entities
+	ccHObject::Container m_selectedEntities;
+};
+
+#endif //Q_FWF_PLUGIN_HEADER
