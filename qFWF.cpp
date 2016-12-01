@@ -27,12 +27,12 @@
 //qCC_io
 #include <LASFields.h>
 
-//CCLib
-
 //Qt
 #include <QtGui>
 #include <QtCore>
 #include <QApplication>
+#include <QMessageBox>
+#include <QMainWindow>
 
 qFWF::qFWF(QObject* parent/*=0*/)
 	: QObject(parent)
@@ -162,7 +162,7 @@ void qFWF::doConvertWFToCloudAction()
 		{
 			const ccWaveform& w = cloud->fwfData()[pi];
 
-			if (returnNumbers && returnNumbers->getValue(pi) != 0)
+			if (returnNumbers && returnNumbers->getValue(pi) > 1)
 			{
 				//skip secondary echos
 				continue;
@@ -186,7 +186,25 @@ void qFWF::doConvertWFToCloudAction()
 		}
 	}
 
-	assert(valueCount != 0);
+	if (valueCount == 0)
+	{
+		m_app->dispToConsole("No point generated (check the parameters)", ccMainAppInterface::ERR_CONSOLE_MESSAGE);
+		return;
+	}
+	//if the output cloud might be too big, ask the user for confirmation
+	if (	valueCount > 20000000
+		&&	QMessageBox::question
+			(
+				m_app->getMainWindow(),
+				"Samples",
+				QString("%1 points will be created. Ready?").arg(QLocale(QLocale::English).toString(valueCount)),
+				QMessageBox::Yes,
+				QMessageBox::No
+			) == QMessageBox::No
+		)
+	{
+		return;
+	}
 
 	//now we can create the cloud
 	{
@@ -205,7 +223,7 @@ void qFWF::doConvertWFToCloudAction()
 		{
 			const ccWaveform& w = cloud->fwfData()[pi];
 			
-			if (returnNumbers && returnNumbers->getValue(pi) != 0)
+			if (returnNumbers && returnNumbers->getValue(pi) > 1)
 			{
 				//skip secondary echos
 				continue;
