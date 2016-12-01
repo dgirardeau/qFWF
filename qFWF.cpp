@@ -18,25 +18,30 @@
 #include "qFWF.h"
 
 //local
-
-//CCLib
+#include "ConvertWFToCloudDialog.h"
 
 //qCC_db
 #include <ccPointCloud.h>
+#include <ccScalarField.h>
+
+//qCC_io
+#include <LASFields.h>
+
+//CCLib
 
 //Qt
 #include <QtGui>
 #include <QtCore>
 #include <QApplication>
 
-qCanupoPlugin::qCanupoPlugin(QObject* parent/*=0*/)
+qFWF::qFWF(QObject* parent/*=0*/)
 	: QObject(parent)
 	, m_convertWFToCloudAction(0)
 	, m_computeOrthoWF(0)
 {
 }
 
-void qCanupoPlugin::onNewSelection(const ccHObject::Container& selectedEntities)
+void qFWF::onNewSelection(const ccHObject::Container& selectedEntities)
 {
 	if (m_convertWFToCloudAction)
 	{
@@ -47,20 +52,21 @@ void qCanupoPlugin::onNewSelection(const ccHObject::Container& selectedEntities)
 	if (m_computeOrthoWF)
 	{
 		//convert waveform to cloud: only one point cloud with waveform
-		m_computeOrthoWF->setEnabled(selectedEntities.size() == 1 && selectedEntities[0]->isA(CC_TYPES::POINT_CLOUD) && static_cast<ccPointCloud*>(selectedEntities[0])->hasFWF());
+		//m_computeOrthoWF->setEnabled(selectedEntities.size() == 1 && selectedEntities[0]->isA(CC_TYPES::POINT_CLOUD) && static_cast<ccPointCloud*>(selectedEntities[0])->hasFWF());
+		m_computeOrthoWF->setEnabled(false);
 	}
 
 	m_selectedEntities = selectedEntities;
 }
 
-void qCanupoPlugin::getActions(QActionGroup& group)
+void qFWF::getActions(QActionGroup& group)
 {
 	if (!m_convertWFToCloudAction)
 	{
 		m_convertWFToCloudAction = new QAction("Waveform to cloud", this);
 		m_convertWFToCloudAction->setToolTip("Convert waveform to cloud");
 		m_convertWFToCloudAction->setIcon(QIcon(QString::fromUtf8(":/CC/plugin/qFWF/icon.png")));
-		connect(m_convertWFToCloudAction, SIGNAL(triggered()), this, SLOT(doTrainAction()));
+		connect(m_convertWFToCloudAction, SIGNAL(triggered()), this, SLOT(doConvertWFToCloudAction()));
 	}
 	group.addAction(m_convertWFToCloudAction);
 
@@ -69,12 +75,12 @@ void qCanupoPlugin::getActions(QActionGroup& group)
 		m_computeOrthoWF = new QAction("Compute ortho-waveform", this);
 		m_computeOrthoWF->setToolTip("Projects the waveforms in a grid-like structure to generate ortho-waveforms");
 		m_computeOrthoWF->setIcon(QIcon(QString::fromUtf8(":/CC/plugin/qFWF/icon.png")));
-		connect(m_computeOrthoWF, SIGNAL(triggered()), this, SLOT(doClassifyAction()));
+		connect(m_computeOrthoWF, SIGNAL(triggered()), this, SLOT(doComputeOrthoWF()));
 	}
 	group.addAction(m_computeOrthoWF);
 }
 
-ccPointCloud* qCanupoPlugin::getCloudWithFWF()
+ccPointCloud* qFWF::getCloudWithFWF()
 {
 	if (!m_app)
 	{
@@ -98,7 +104,7 @@ ccPointCloud* qCanupoPlugin::getCloudWithFWF()
 	return cloud;
 }
 
-void qCanupoPlugin::doConvertWFToCloudAction()
+void qFWF::doConvertWFToCloudAction()
 {
 	ccPointCloud* cloud = getCloudWithFWF();
 	if (!cloud)
@@ -107,10 +113,138 @@ void qCanupoPlugin::doConvertWFToCloudAction()
 	}
 	assert(m_app && cloud->hasFWF()); //see getCloudWithFWF
 
-	//TDO
+	//get the overal signal amplitude
+	double overallMin, overallMax;
+	if (!cloud->computeFWFAmplitude(overallMin, overallMax))
+	{
+		m_app->dispToConsole("Cloud has no valid FWF data", ccMainAppInterface::ERR_CONSOLE_MESSAGE);
+		return;
+	}
+
+	//check if the cloud has a 'return number' scalar field
+	int rnSFIndex = cloud->getScalarFieldIndexByName(LAS_FIELD_NAMES[LAS_RETURN_NUMBER]);
+
+	//init dialog
+	ConvertWFToCloudDialog dialog;
+	static bool s_useOnlyFirstEcho = true;
+	dialog.onlyFirstEchoCheckBox->setChecked(s_useOnlyFirstEcho);
+	dialog.onlyFirstEchoCheckBox->setEnabled(rnSFIndex >= 0);
+
+	static double s_minAplitude = 0;
+	dialog.minAmplitudeDoubleSpinBox->setRange(overallMin, overallMax);
+	dialog.minAmplitudeDoubleSpinBox->setValue(s_minAplitude);
+
+	if (!dialog.exec())
+	{
+		//process cancelled by the user
+		return;
+	}
+
+	s_useOnlyFirstEcho = dialog.onlyFirstEchoCheckBox->isChecked();
+	s_minAplitude = dialog.minAmplitudeDoubleSpinBox->value();
+
+	//shall we use the return numbers?
+	CCLib::ScalarField* returnNumbers = 0;
+	if (s_useOnlyFirstEcho && rnSFIndex >= 0)
+	{
+		returnNumbers = cloud->getScalarField(rnSFIndex);
+		assert(returnNumbers);
+	}
+
+	//shortcut
+	const ccPointCloud::FWFDescriptorSet& descriptors = cloud->fwfDescriptors();
+
+	//count the number of values
+	size_t valueCount = 0;
+	{
+		assert(cloud->fwfData().size() == cloud->size());
+		for (unsigned pi = 0; pi < cloud->size(); ++pi)
+		{
+			const ccWaveform& w = cloud->fwfData()[pi];
+
+			if (returnNumbers && returnNumbers->getValue(pi) != 0)
+			{
+				//skip secondary echos
+				continue;
+			}
+
+			uint8_t descriptorID = w.descriptorID();
+			if (descriptorID == 0 || !descriptors.contains(descriptorID))
+			{
+				//no valid descriptor
+				continue;
+			}
+
+			const WaveformDescriptor& d = descriptors[descriptorID];
+			for (uint32_t i = 0; i < d.numberOfSamples; ++i)
+			{
+				if (w.getSample(i, d) >= s_minAplitude)
+				{
+					++valueCount;
+				}
+			}
+		}
+	}
+
+	assert(valueCount != 0);
+
+	//now we can create the cloud
+	{
+		ccPointCloud* newCloud = new ccPointCloud(cloud->getName() + QString(".fwf(>%1)").arg(s_minAplitude));
+		ccScalarField* amplitudes = new ccScalarField("Amplitudes");
+		newCloud->addScalarField(amplitudes);
+
+		if (!newCloud->reserve(static_cast<unsigned>(valueCount)))
+		{
+			m_app->dispToConsole("Not enough memory", ccMainAppInterface::ERR_CONSOLE_MESSAGE);
+			delete newCloud;
+			return;
+		}
+
+		for (unsigned pi = 0; pi < cloud->size(); ++pi)
+		{
+			const ccWaveform& w = cloud->fwfData()[pi];
+			
+			if (returnNumbers && returnNumbers->getValue(pi) != 0)
+			{
+				//skip secondary echos
+				continue;
+			}
+
+			uint8_t descriptorID = w.descriptorID();
+			if (descriptorID == 0 || !descriptors.contains(descriptorID))
+			{
+				//no valid descriptor
+				continue;
+			}
+
+			const CCVector3* P = cloud->getPoint(pi);
+			const WaveformDescriptor& d = descriptors[descriptorID];
+			for (uint32_t i = 0; i < d.numberOfSamples; ++i)
+			{
+				double amplitude = w.getSample(i, d);
+				if (amplitude >= s_minAplitude)
+				{
+					CCVector3 Q = w.getSamplePos(i, *P, d);
+					newCloud->addPoint(Q);
+					amplitudes->addElement(amplitude);
+				}
+			}
+		}
+
+		amplitudes->computeMinAndMax();
+		newCloud->setCurrentDisplayedScalarField(0);
+		newCloud->showSF(true);
+		if (cloud->getParent())
+		{
+			cloud->getParent()->addChild(newCloud);
+		}
+
+		m_app->addToDB(newCloud);
+	}
 }
 
-void qCanupoPlugin::doComputeOrthoWF()
+void qFWF::doComputeOrthoWF()
 {
 	ccPointCloud* cloud = getCloudWithFWF();
 	if (!cloud)
@@ -118,10 +252,12 @@ void qCanupoPlugin::doComputeOrthoWF()
 		return;
 	}
 	assert(m_app && cloud->hasFWF()); //see getCloudWithFWF
+
+	//TODO
 }
 
 
-QIcon qCanupoPlugin::getIcon() const
+QIcon qFWF::getIcon() const
 {
-	return QIcon(QString::fromUtf8(":/CC/plugin/qCanupoPlugin/iconClassify.png"));
+	return QIcon(QString::fromUtf8(":/CC/plugin/qFWF/iconClassify.png"));
 }

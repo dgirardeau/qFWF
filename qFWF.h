@@ -24,7 +24,7 @@
 class ccPointCloud;
 
 //! (LAS) Full Waveform plugin
-class qCanupoPlugin : public QObject, public ccStdPluginInterface
+class qFWF : public QObject, public ccStdPluginInterface
 {
 	Q_OBJECT
 	Q_INTERFACES(ccStdPluginInterface)
@@ -33,7 +33,7 @@ class qCanupoPlugin : public QObject, public ccStdPluginInterface
 public:
 
 	//! Default constructor
-	qCanupoPlugin(QObject* parent = 0);
+	qFWF(QObject* parent = 0);
 
 	//inherited from ccPluginInterface
 	virtual QString getName() const { return "FWF"; }
