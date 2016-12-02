@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>350</width>
-    <height>339</height>
+    <height>300</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -145,7 +145,7 @@
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="QComboBox" name="comboBox">
+       <widget class="QComboBox" name="interpMethodComboBox">
         <item>
          <property name="text">
           <string>linear</string>
@@ -168,31 +168,54 @@
    </item>
    <item>
     <widget class="QFrame" name="buttonFrame">
-     <property name="minimumSize">
-      <size>
-       <width>0</width>
-       <height>50</height>
-      </size>
-     </property>
      <property name="frameShape">
       <enum>QFrame::StyledPanel</enum>
      </property>
      <property name="frameShadow">
       <enum>QFrame::Raised</enum>
      </property>
-     <widget class="QPushButton" name="computePushButton">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>20</y>
-        <width>75</width>
-        <height>23</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Compte</string>
-      </property>
-     </widget>
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <item>
+       <widget class="QPushButton" name="computePushButton">
+        <property name="text">
+         <string>Compte</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>60</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QPushButton" name="exportCloudPushButton">
+        <property name="toolTip">
+         <string>Export the grid as a point cloud with ortho-waveforms</string>
+        </property>
+        <property name="text">
+         <string>Export to cloud</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="exportGridPushButton">
+        <property name="toolTip">
+         <string>Export the grid as a point cloud</string>
+        </property>
+        <property name="text">
+         <string>Export to grid</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </widget>
    </item>
    <item>

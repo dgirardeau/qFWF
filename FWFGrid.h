@@ -41,10 +41,50 @@ struct FWFGrid
 	//! Initializes / resets the grid
 	bool init(	const Tuple3ui& size,
 				const CCVector3d& steps,
-				const CCVector3d& minCorner);
+				const CCVector3d& minCorner)
+	{
+		setValid(false);
 
+		m_size = size;
+		m_steps = steps;
+		m_minCorner = minCorner;
+
+		if (m_size.x == 0 || m_size.y == 0 || m_size.z == 0)
+		{
+			//invalid size
+			return false;
+		}
+
+		try
+		{
+			m_data.resize(m_size.z);
+
+			size_t sliceSize = m_size.x; sliceSize *= m_size.y;
+
+			for (Slice& slice : m_data)
+			{
+				slice.resize(sliceSize);
+			}
+		}
+		catch (const std::bad_alloc&)
+		{
+			//not enough memory
+			clear();
+			return false;
+		}
+
+		setValid(true);
+		return true;
+	}
+	
 	//! Clears the grid
-	void clear();
+	void clear()
+	{
+		//reset
+		m_size = Tuple3ui(0, 0, 0);
+		m_data.clear();
+		setValid(false);
+	}
 
 	//! Sets valid
 	inline void setValid(bool state) { valid = state; }
@@ -59,7 +99,7 @@ struct FWFGrid
 		//DGM: we use the 'PixelIsArea' convention
 		return Tuple3i(	static_cast<int>(relativePos.x / m_steps.x + 0.5),
 						static_cast<int>(relativePos.y / m_steps.y + 0.5),
-						static_cast<int>(relativePos.y / m_steps.z + 0.5)
+						static_cast<int>(relativePos.z / m_steps.z + 0.5)
 					);
 	}
 
@@ -71,9 +111,28 @@ struct FWFGrid
 										(pos.z + 0.5) * m_steps.z);
 	}
 
+	//! Returns whether the given voxel position is inside the grid or not
+	bool inbounds(const Tuple3i& pos) const
+	{
+		return	pos.x >= 0
+			&&	pos.y >= 0
+			&&	pos.z >= 0
+			&&	static_cast<unsigned>(pos.x) < m_size.x
+			&&	static_cast<unsigned>(pos.y) < m_size.y
+			&&	static_cast<unsigned>(pos.z) < m_size.z;
+	}
+
 	//! Grid cell
 	struct Cell
 	{
+		void add(double value, double weight = 1.0)
+		{
+			value *= weight;
+			valueSum += value;
+			squareValueSum += value * value;
+			weightSum += weight;
+		}
+		
 		double valueSum = 0;
 		double squareValueSum = 0;
 		double weightSum = 0;
@@ -81,6 +140,17 @@ struct FWFGrid
 		double mean() const { return weightSum > 0 ? valueSum / weightSum : std::numeric_limits<double>::quiet_NaN(); }
 		double stdDev() const { return weightSum > 0 ? sqrt(std::abs(squareValueSum / weightSum - (valueSum * valueSum) / (weightSum * weightSum))) : std::numeric_limits<double>::quiet_NaN(); }
 	};
+
+	//! Grid size
+	const Tuple3ui& size() const { return m_size; }
+
+	//! Slice (XY)
+	typedef std::vector<Cell> Slice;
+
+	//! Returns a given slice
+	Slice& getSlice(size_t z) { return m_data[z]; }
+	//! Returns a given slice (const version)
+	const Slice& getSlice(size_t z) const { return m_data[z]; }
 
 protected:
 
@@ -93,11 +163,8 @@ protected:
 	//! Grid min corder
 	CCVector3d m_minCorner;
 
-	//! Slice (XY)
-	typedef std::vector<Cell> Slice;
-
 	//! All cells
-	std::vector<Slice> data;
+	std::vector<Slice> m_data;
 
 	//! Whether the grid is valid/up-to-date
 	bool valid;

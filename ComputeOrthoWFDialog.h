@@ -20,8 +20,12 @@
 
 #include <ui_ComputeOrthoWFDialog.h>
 
+//Local
+#include "FWFGrid.h"
+
 //Qt
 #include <QDialog>
+#include <QSharedPointer>
 
 //qCC_db
 #include <ccBBox.h>
@@ -32,6 +36,7 @@
 class ccPointCloud;
 class ccProgressDialog;
 class ccBoundingBoxEditorDlg;
+class ccMainAppInterface;
 
 class ComputeOrthoWFDialog : public QDialog, public Ui::ComputeOrthoWFDialog
 {
@@ -40,7 +45,7 @@ class ComputeOrthoWFDialog : public QDialog, public Ui::ComputeOrthoWFDialog
 public:
 	
 	//! Default constructor
-	ComputeOrthoWFDialog(QWidget* parent = 0);
+	ComputeOrthoWFDialog(ccMainAppInterface* app, QWidget* parent = 0);
 
 	//! Sets the associated cloud
 	bool setCloud(ccPointCloud* cloud, ccProgressDialog* progressDialog = 0);
@@ -49,22 +54,51 @@ protected slots:
 
 	void updateGridSize();
 	void editBox();
+	void invalidateGrid() { setCurrentGridValidity(false); }
+	void exportToGridCloud();
+	void exportToFWFCloud();
+	void computeGrid();
 
 protected: //methods
 
 	//! Compute the grid size
 	bool computeGridSize(Tuple3ui& size) const;
 
-	//! Compute the grid
-	void computeGrid();
+	//! Interpolation method
+	enum InterpolationMethod
+	{
+		LINEAR,
+		INV_SQUARE,
+		INV_EXP
+	};
+
+	//! Returns the selected interpolation method
+	InterpolationMethod getInterpolationMethod() const;
+
+	//! Loads parameters from persistent settings
+	void loadSettings();
+	//! Save current parameters to persistent settings
+	void saveSettings() const;
+
+	//! Sets the current grid 'validity'
+	void setCurrentGridValidity(bool state);
+
+	//! Converts a grid to a point cloud
+	static ccPointCloud* ConvertGridToGridCloud(const FWFGrid& grid, ccMainAppInterface* app = 0);
 
 protected: //members
+
+	//! Application interface
+	ccMainAppInterface* m_app;
 	
 	//! Associated cloud
 	ccPointCloud* m_cloud;
 
 	//! FWF signal bounding-box (editor / manager)
 	ccBoundingBoxEditorDlg* m_bbEditorDlg;
+
+	//! Projected grid
+	QSharedPointer<FWFGrid> m_grid;
 };
 
 #endif //COMPUTE_ORTHO_WF_DIALOG_HEADER

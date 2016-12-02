@@ -19,6 +19,7 @@
 
 //local
 #include "ConvertWFToCloudDialog.h"
+#include "ComputeOrthoWFDialog.h"
 
 //qCC_db
 #include <ccPointCloud.h>
@@ -53,8 +54,7 @@ void qFWF::onNewSelection(const ccHObject::Container& selectedEntities)
 	if (m_computeOrthoWF)
 	{
 		//convert waveform to cloud: only one point cloud with waveform
-		//m_computeOrthoWF->setEnabled(selectedEntities.size() == 1 && selectedEntities[0]->isA(CC_TYPES::POINT_CLOUD) && static_cast<ccPointCloud*>(selectedEntities[0])->hasFWF());
-		m_computeOrthoWF->setEnabled(false);
+		m_computeOrthoWF->setEnabled(selectedEntities.size() == 1 && selectedEntities[0]->isA(CC_TYPES::POINT_CLOUD) && static_cast<ccPointCloud*>(selectedEntities[0])->hasFWF());
 	}
 
 	m_selectedEntities = selectedEntities;
@@ -301,9 +301,16 @@ void qFWF::doComputeOrthoWF()
 	}
 	assert(m_app && cloud->hasFWF()); //see getCloudWithFWF
 
-	//TODO
+	ComputeOrthoWFDialog dlg(m_app, m_app->getMainWindow());
+	if (dlg.setCloud(cloud))
+	{
+		dlg.exec();
+	}
+	else
+	{
+		//something went wrong?!
+	}
 }
-
 
 QIcon qFWF::getIcon() const
 {
