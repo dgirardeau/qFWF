@@ -1,6 +1,6 @@
 //##########################################################################
 //#                                                                        #
-//#                     CLOUDCOMPARE PLUGIN: qCANUPO                       #
+//#                       CLOUDCOMPARE PLUGIN: qFWF                        #
 //#                                                                        #
 //#  This program is free software; you can redistribute it and/or modify  #
 //#  it under the terms of the GNU General Public License as published by  #
@@ -23,6 +23,7 @@
 //qCC_db
 #include <ccPointCloud.h>
 #include <ccScalarField.h>
+#include <ccProgressDialog.h>
 
 //qCC_io
 #include <LASFields.h>
@@ -115,7 +116,9 @@ void qFWF::doConvertWFToCloudAction()
 
 	//get the overal signal amplitude
 	double overallMin, overallMax;
-	if (!cloud->computeFWFAmplitude(overallMin, overallMax))
+	ccProgressDialog pDlg(m_app->getMainWindow());
+	pDlg.setAutoClose(false);
+	if (!cloud->computeFWFAmplitude(overallMin, overallMax, &pDlg))
 	{
 		m_app->dispToConsole("Cloud has no valid FWF data", ccMainAppInterface::ERR_CONSOLE_MESSAGE);
 		return;
@@ -154,12 +157,25 @@ void qFWF::doConvertWFToCloudAction()
 	//shortcut
 	const ccPointCloud::FWFDescriptorSet& descriptors = cloud->fwfDescriptors();
 
-	//count the number of values
+	//count the number of candidate values
 	size_t valueCount = 0;
 	{
+		//update the progress dialog
+		CCLib::NormalizedProgress nProgress(&pDlg, static_cast<unsigned>(cloud->size()));
+		pDlg.setValue(0);
+		pDlg.setWindowTitle("FWF");
+		pDlg.setLabelText("Counting candidates...");
+		QCoreApplication::processEvents();
+
 		assert(cloud->fwfData().size() == cloud->size());
 		for (unsigned pi = 0; pi < cloud->size(); ++pi)
 		{
+			if (!nProgress.oneStep())
+			{
+				//process cancelled by the user
+				return;
+			}
+
 			const ccWaveform& w = cloud->fwfData()[pi];
 
 			if (returnNumbers && returnNumbers->getValue(pi) > 1)
@@ -208,6 +224,13 @@ void qFWF::doConvertWFToCloudAction()
 
 	//now we can create the cloud
 	{
+		//update the progress dialog
+		CCLib::NormalizedProgress nProgress(&pDlg, static_cast<unsigned>(cloud->size()));
+		pDlg.setValue(0);
+		pDlg.setWindowTitle("FWF");
+		pDlg.setLabelText("Exporting candidates...");
+		QCoreApplication::processEvents();
+
 		ccPointCloud* newCloud = new ccPointCloud(cloud->getName() + QString(".fwf(>%1)").arg(s_minAplitude));
 		ccScalarField* amplitudes = new ccScalarField("Amplitudes");
 		newCloud->addScalarField(amplitudes);
@@ -221,6 +244,13 @@ void qFWF::doConvertWFToCloudAction()
 
 		for (unsigned pi = 0; pi < cloud->size(); ++pi)
 		{
+			if (!nProgress.oneStep())
+			{
+				//process cancelled by the user
+				delete newCloud;
+				return;
+			}
+
 			const ccWaveform& w = cloud->fwfData()[pi];
 			
 			if (returnNumbers && returnNumbers->getValue(pi) > 1)
