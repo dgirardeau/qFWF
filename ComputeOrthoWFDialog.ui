@@ -7,13 +7,13 @@
     <x>0</x>
     <y>0</y>
     <width>350</width>
-    <height>300</height>
+    <height>385</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Compute ortho-waveforms</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
+  <layout class="QVBoxLayout" name="verticalLayout_2">
    <item>
     <widget class="QGroupBox" name="gridGroupBox">
      <property name="title">
@@ -167,53 +167,86 @@
     </widget>
    </item>
    <item>
+    <widget class="QPushButton" name="computePushButton">
+     <property name="text">
+      <string>Compute</string>
+     </property>
+    </widget>
+   </item>
+   <item>
     <widget class="QFrame" name="buttonFrame">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
      <property name="frameShape">
       <enum>QFrame::StyledPanel</enum>
      </property>
      <property name="frameShadow">
       <enum>QFrame::Raised</enum>
      </property>
-     <layout class="QHBoxLayout" name="horizontalLayout">
+     <layout class="QVBoxLayout" name="verticalLayout">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
       <item>
-       <widget class="QPushButton" name="computePushButton">
+       <widget class="QLabel" name="gridInfoLabel">
         <property name="text">
-         <string>Compte</string>
+         <string>Grid not computed</string>
         </property>
        </widget>
       </item>
       <item>
-       <spacer name="horizontalSpacer">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>60</width>
-          <height>20</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item>
-       <widget class="QPushButton" name="exportCloudPushButton">
-        <property name="toolTip">
-         <string>Export the grid as a point cloud with ortho-waveforms</string>
-        </property>
-        <property name="text">
-         <string>Export to cloud</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="exportGridPushButton">
-        <property name="toolTip">
-         <string>Export the grid as a point cloud</string>
-        </property>
-        <property name="text">
-         <string>Export to grid</string>
-        </property>
-       </widget>
+       <layout class="QHBoxLayout" name="horizontalLayout">
+        <item>
+         <widget class="QDoubleSpinBox" name="minAmpDoubleSpinBox">
+          <property name="toolTip">
+           <string>Minimum amplitude for exported points</string>
+          </property>
+          <property name="prefix">
+           <string>A &gt; </string>
+          </property>
+          <property name="maximum">
+           <double>1000000.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>60</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QPushButton" name="exportCloudPushButton">
+          <property name="toolTip">
+           <string>Export the grid as a point cloud with ortho-waveforms</string>
+          </property>
+          <property name="text">
+           <string>Export to cloud</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="exportGridPushButton">
+          <property name="toolTip">
+           <string>Export the grid as a point cloud</string>
+          </property>
+          <property name="text">
+           <string>Export to grid</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </item>
      </layout>
     </widget>

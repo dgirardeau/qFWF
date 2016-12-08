@@ -76,6 +76,22 @@ struct FWFGrid
 		setValid(true);
 		return true;
 	}
+
+	double computeMaxVal() const
+	{
+		double maxVal = 0;
+		for (const Slice& slice : m_data)
+		{
+			for (const Cell& cell : slice)
+			{
+				if (cell.weightSum > 0)
+				{
+					maxVal = std::max(cell.mean(), maxVal);
+				}
+			}
+		}
+		return maxVal;
+	}
 	
 	//! Clears the grid
 	void clear()

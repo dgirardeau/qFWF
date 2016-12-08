@@ -245,8 +245,7 @@ void ComputeOrthoWFDialog::setCurrentGridValidity(bool state)
 		m_grid.clear();
 	}
 
-	exportCloudPushButton->setEnabled(state);
-	exportGridPushButton->setEnabled(state);
+	buttonFrame->setEnabled(state);
 }
 
 void ComputeOrthoWFDialog::computeGrid()
@@ -264,6 +263,8 @@ void ComputeOrthoWFDialog::computeGrid()
 		return;
 	}
 	assert(m_bbEditorDlg && m_bbEditorDlg->getBox().isValid());
+
+	gridInfoLabel->setText("Initializing the grid");
 
 	if (m_grid)
 	{
@@ -288,9 +289,13 @@ void ComputeOrthoWFDialog::computeGrid()
 		if (m_app)
 		{
 			m_app->dispToConsole("Failed to initialize the grid", ccMainAppInterface::ERR_CONSOLE_MESSAGE);
-			return;
+			gridInfoLabel->setText("Failed to initialize the grid");
+
+		return;
 		}
 	}
+
+	gridInfoLabel->setText("Computing grid");
 
 	//now fill it
 	{
@@ -396,10 +401,16 @@ void ComputeOrthoWFDialog::computeGrid()
 		}
 	}
 
+	double maxVal = m_grid->computeMaxVal();
+	minAmpDoubleSpinBox->setMaximum(maxVal);
+	gridInfoLabel->setText(QString("Grid computed (max amplitude: %1)").arg(maxVal));
+
 	setCurrentGridValidity(true);
 }
 
-ccPointCloud* ComputeOrthoWFDialog::ConvertGridToGridCloud(const FWFGrid& grid, ccMainAppInterface* app/*=0*/)
+ccPointCloud* ComputeOrthoWFDialog::ConvertGridToGridCloud(	const FWFGrid& grid,
+															double minVal/*=0*/,
+															ccMainAppInterface* app/*=0*/)
 {
 	//count the number of valid cells
 	unsigned validCellCount = 0;
@@ -409,7 +420,7 @@ ccPointCloud* ComputeOrthoWFDialog::ConvertGridToGridCloud(const FWFGrid& grid, 
 			const FWFGrid::Slice& slice = grid.getSlice(z);
 			for (const FWFGrid::Cell& cell : slice)
 			{
-				if (cell.weightSum != 0)
+				if (cell.weightSum != 0 && cell.mean() > minVal)
 				{
 					++validCellCount;
 				}
@@ -454,13 +465,19 @@ ccPointCloud* ComputeOrthoWFDialog::ConvertGridToGridCloud(const FWFGrid& grid, 
 				currentVoxel.y = static_cast<int>(y);
 				for (unsigned x = 0; x < grid.size().x; ++x, ++_cell)
 				{
-					if (_cell->weightSum != 0)
+					if (_cell->weightSum == 0)
+					{
+						continue;
+					}
+					
+					double meanVal = _cell->mean();
+					if (meanVal > minVal)
 					{
 						currentVoxel.x = static_cast<int>(x);
 						CCVector3d C = grid.computeCellCenter(currentVoxel);
 
 						cloud->addPoint(CCVector3::fromArray(C.u));
-						amplitudes->addElement(_cell->mean());
+						amplitudes->addElement(meanVal);
 						stdDev->addElement(_cell->stdDev());
 					}
 				}
@@ -485,7 +502,8 @@ void ComputeOrthoWFDialog::exportToGridCloud()
 		return;
 	}
 
-	ccPointCloud* cloud = ComputeOrthoWFDialog::ConvertGridToGridCloud(*m_grid, m_app);
+
+	ccPointCloud* cloud = ComputeOrthoWFDialog::ConvertGridToGridCloud(*m_grid, minAmpDoubleSpinBox->value(), m_app);
 
 	if (cloud)
 	{
