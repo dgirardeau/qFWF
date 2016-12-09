@@ -46,6 +46,42 @@ struct LM_GaussianMixtureFunctor
 	int inputs() const { return static_cast<int>(m_peakCount * 3); }
 	int values() const { return static_cast<int>(m_values.size()); }
 
+	//jacobian
+	int df(const Eigen::VectorXd &x, Eigen::MatrixXd &fjac) const
+	{
+		assert(x.size() == 3 * m_peakCount);
+
+		fjac.setZero();
+
+		//sum the gaussians for each sample
+		for (size_t pi = 0; pi < m_peakCount; ++pi)
+		{
+			double mu    = x(3 * pi    );
+			double amp   = x(3 * pi + 1);
+			double sigma = x(3 * pi + 2);
+
+			//mu    = std::max(mu, 0.0);
+			//amp   = std::max(amp, 0.0);
+			//sigma = std::max(sigma, s_minSigma);
+
+			double sigma2 = sigma * sigma;
+			assert(sigma2 > 0);
+
+			for (size_t s = 0; s < m_values.size(); ++s)
+			{
+				double xc = s - mu;
+				double xc2 = xc*xc;
+				double exp_u = exp(-xc2 / (2 * sigma2));
+
+				fjac(s, 3 * pi    ) += amp * (xc / sigma2) * exp_u; //A * ((x - mu) / sigma^2) * exp(...)
+				fjac(s, 3 * pi + 1) += exp_u; //exp(...)
+				fjac(s, 3 * pi + 2) += (xc2 / (sigma * sigma2)) * amp * exp_u; //A * ((x - mu)^2 / sigma^3) * exp(...)
+			}
+		}
+		return 0;
+	}
+
+	//error evaluation at each step
 	int operator()(const Eigen::VectorXd &x, Eigen::VectorXd &fvec) const
 	{
 		assert(x.size() == 3 * m_peakCount);
@@ -60,9 +96,9 @@ struct LM_GaussianMixtureFunctor
 			double amp   = x(3 * pi + 1);
 			double sigma = x(3 * pi + 2);
 
-			mu    = std::max(mu   , 0.0);
-			amp   = std::max(amp  , 0.0);
-			sigma = std::max(sigma, s_minSigma);
+			//mu    = std::max(mu   , 0.0);
+			//amp   = std::max(amp  , 0.0);
+			//sigma = std::max(sigma, s_minSigma);
 
 			double sigma2_2 = 2 * sigma * sigma;
 			assert(sigma2_2 > 0);
@@ -203,8 +239,14 @@ bool FWFPeakDetectorNLSGauss::detectPeaks(	std::vector<Peak>& peakPositions,
 	//eventually use Levenberg-Marquardt to refine the peaks
 	{
 		LM_GaussianMixtureFunctor functor(peakPositions.size(), values);
-		Eigen::NumericalDiff<LM_GaussianMixtureFunctor> numDiff(functor);
-		Eigen::LevenbergMarquardt<Eigen::NumericalDiff<LM_GaussianMixtureFunctor>, double> lm(numDiff);
+//#define USE_JACOBIAN
+#ifdef USE_JACOBIAN
+		Eigen::LevenbergMarquardt<LM_GaussianMixtureFunctor> lm(functor);
+#else
+		typedef Eigen::NumericalDiff<LM_GaussianMixtureFunctor> LM_GaussianMixtureFunctorDiff;
+		LM_GaussianMixtureFunctorDiff functorDiff(functor);
+		Eigen::LevenbergMarquardt<LM_GaussianMixtureFunctorDiff, double> lm(functorDiff);
+#endif
 		lm.parameters.maxfev = 2000;
 		lm.parameters.xtol = 1.0e-10;
 
