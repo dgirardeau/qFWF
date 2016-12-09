@@ -36,10 +36,15 @@
 #include <QMessageBox>
 #include <QMainWindow>
 
+//for peak extraction test
+#include <QInputDialog>
+#include "FWFPeakDetectorNLSGauss.h"
+
 qFWF::qFWF(QObject* parent/*=0*/)
 	: QObject(parent)
 	, m_convertWFToCloudAction(0)
 	, m_computeOrthoWF(0)
+	, m_testPeakExtraction(0)
 {
 }
 
@@ -55,6 +60,12 @@ void qFWF::onNewSelection(const ccHObject::Container& selectedEntities)
 	{
 		//convert waveform to cloud: only one point cloud with waveform
 		m_computeOrthoWF->setEnabled(selectedEntities.size() == 1 && selectedEntities[0]->isA(CC_TYPES::POINT_CLOUD) && static_cast<ccPointCloud*>(selectedEntities[0])->hasFWF());
+	}
+
+	if (m_testPeakExtraction)
+	{
+		//we need one point cloud with waveform
+		m_testPeakExtraction->setEnabled(selectedEntities.size() == 1 && selectedEntities[0]->isA(CC_TYPES::POINT_CLOUD) && static_cast<ccPointCloud*>(selectedEntities[0])->hasFWF());
 	}
 
 	m_selectedEntities = selectedEntities;
@@ -79,6 +90,15 @@ void qFWF::getActions(QActionGroup& group)
 		connect(m_computeOrthoWF, SIGNAL(triggered()), this, SLOT(doComputeOrthoWF()));
 	}
 	group.addAction(m_computeOrthoWF);
+
+	if (!m_testPeakExtraction)
+	{
+		m_testPeakExtraction = new QAction("Test peak extraction", this);
+		m_testPeakExtraction->setToolTip("Extracts peaks from a single waveform");
+		m_testPeakExtraction->setIcon(QIcon(QString::fromUtf8(":/CC/plugin/qFWF/icon.png")));
+		connect(m_testPeakExtraction, SIGNAL(triggered()), this, SLOT(doTestPeakExtraction()));
+	}
+	group.addAction(m_testPeakExtraction);
 }
 
 ccPointCloud* qFWF::getCloudWithFWF()
@@ -309,6 +329,130 @@ void qFWF::doComputeOrthoWF()
 	else
 	{
 		//something went wrong?!
+	}
+}
+
+void qFWF::doTestPeakExtraction()
+{
+	ccPointCloud* cloud = getCloudWithFWF();
+	if (!cloud)
+	{
+		return;
+	}
+	assert(m_app && cloud->hasFWF()); //see getCloudWithFWF
+
+	bool ok = true;
+	int pointIndex = QInputDialog::getInt(m_app->getMainWindow(), "Waveform index", "Waveform / point", 0, 0, cloud->size() - 1, 100, &ok);
+	if (!ok)
+	{
+		//cancelled by the user
+		return;
+	}
+
+	//get the waveform
+	const ccWaveform& w = cloud->fwfData()[pointIndex];
+	assert(cloud->fwfDescriptors().contains(w.descriptorID()));
+	const WaveformDescriptor& wd = cloud->fwfDescriptors()[w.descriptorID()];
+
+	try
+	{
+		//then get the values
+		std::vector<double> values;
+		if (!w.decodeSamples(values, wd))
+		{
+			//not enough memory?
+			m_app->dispToConsole("Failed to decode the waveform values", ccMainAppInterface::WRN_CONSOLE_MESSAGE);
+			return;
+		}
+
+		//setup the detector
+		FWFPeakDetectorNLSGauss detector;
+		FWFPeakDetectorNLSGauss::BaseParameters baseParams;
+		{
+			baseParams.maxPeakCount = 16;
+			baseParams.minIntensity = 20;
+		}
+		FWFPeakDetectorNLSGauss::SpecificParameters specifParams;
+		{
+			//Gaussian filter 'sigma' (in ns)
+			double sigma_ns = 1;
+			//Equivalent in terms of 'samples'
+			specifParams.smoothWaveformSigma = static_cast<double>(sigma_ns * 1000) / wd.samplingRate_ps;
+		}
+		detector.setSpecificParameters(specifParams);
+
+		std::vector<FWFPeakDetectorInterface::Peak> peaks;
+		if (!detector.detectPeaks(peaks, values, baseParams))
+		{
+			//not enough memory?
+			m_app->dispToConsole("Failed to detect the peaks", ccMainAppInterface::WRN_CONSOLE_MESSAGE);
+			return;
+		}
+
+		if (peaks.empty())
+		{
+			m_app->dispToConsole("No peak detected", ccMainAppInterface::WRN_CONSOLE_MESSAGE);
+			return;
+		}
+		m_app->dispToConsole(QString("%1 peak(s) detected").arg(peaks.size()));
+
+		//simulate the gaussian filter (for debug)
+		std::vector<double> smoothValues;
+		smoothValues = values;
+		if (specifParams.smoothWaveformSigma > 0)
+		{
+			FWFPeakDetectorInterface::SmoothSignal(smoothValues, specifParams.smoothWaveformSigma);
+		}
+
+		//create a new series of values to represent the detected peaks
+		std::vector<double> peakValues, peakPos, peakSigma;
+		peakValues.resize(values.size(), 0);
+		peakPos.resize(values.size(), 0);
+		peakSigma.resize(values.size(), 0);
+		for (FWFPeakDetectorInterface::Peak peak : peaks)
+		{
+			size_t index = std::min(static_cast<size_t>(std::max(0.0, peak.x)), values.size());
+			peakValues[index] = values[index];
+			peakPos[index] = peak.x;
+			peakSigma[index] = peak.sigma;
+		}
+
+		//and generate the synthetic waveform as well
+		std::vector<double> syntheticValues;
+		FWFPeakDetectorNLSGauss::GenerateSyntheticWaveform(peaks, values.size(), syntheticValues);
+
+		//write the data as separate CSV files
+		//ccWaveform::ToASCII(QString("waveform_%1_origin.csv").arg(pointIndex), originalValues, wd.samplingRate_ps);
+		//ccWaveform::ToASCII(QString("waveform_%1_smooth.csv").arg(pointIndex), values, wd.samplingRate_ps);
+		//ccWaveform::ToASCII(QString("waveform_%1_detected[%2].csv").arg(pointIndex).arg(peaks.size()), peakValues, wd.samplingRate_ps);
+
+		//write the data to a CSV file
+		{
+			QString filename = QString("waveform_%1_processed.csv").arg(pointIndex);
+			QFile file(filename);
+			if (!file.open(QFile::Text | QFile::WriteOnly))
+			{
+				m_app->dispToConsole(QString("Failed to open file '%1' for writing").arg(filename), ccMainAppInterface::WRN_CONSOLE_MESSAGE);
+				return;
+			}
+
+			QTextStream stream(&file);
+			stream.setRealNumberPrecision(6);
+			stream.setRealNumberNotation(QTextStream::FixedNotation);
+			stream << "time(ps);original;smoothed;synthetic;peaks;peaks_pos;peaks_sigma" << endl;
+
+			for (uint32_t i = 0; i < values.size(); ++i)
+			{
+				stream << i * wd.samplingRate_ps << ";" << values[i] << ";" << smoothValues[i] << ";" << syntheticValues[i] << ";" << peakValues[i] << "; " << peakPos[i] << "; " << peakSigma[i] << endl;
+			}
+
+			file.close();
+			m_app->dispToConsole(QString("File '%1' has been saved successfully").arg(filename));
+		}
+	}
+	catch (const std::bad_alloc&)
+	{
+		m_app->dispToConsole("Not enough memory to extract or save the peaks", ccMainAppInterface::WRN_CONSOLE_MESSAGE);
 	}
 }
 

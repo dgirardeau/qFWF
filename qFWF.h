@@ -48,6 +48,7 @@ protected slots:
 
 	void doConvertWFToCloudAction();
 	void doComputeOrthoWF();
+	void doTestPeakExtraction();
 
 protected: //methods
 
@@ -60,6 +61,8 @@ protected: //members
 	QAction* m_convertWFToCloudAction;
 	//! Compute ortho waveform
 	QAction* m_computeOrthoWF;
+	//! Test of the peak extraction module
+	QAction* m_testPeakExtraction;
 
 	//! Currently selected entities
 	ccHObject::Container m_selectedEntities;

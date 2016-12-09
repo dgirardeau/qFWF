@@ -20,7 +20,15 @@ project( QFWF_PLUGIN_DLL )
 
 	#don't forget associated widgets(.ui)
 	set( CC_PLUGIN_CUSTOM_UI_LIST ${CloudCompare_SOURCE_DIR}/ui_templates/boundingBoxEditorDlg.ui )
+	
+	#we also need Eigen (for Levenberg-Marquardt optimization, etc.)
+	set( EIGEN_ROOT_DIR "" CACHE PATH "Eigen root (contains the Eigen directory)" )
+	if ( NOT EIGEN_ROOT_DIR )
+		message( SEND_ERROR "No Eigen root directory specified (EIGEN_ROOT_DIR)" )
+	endif()
 
 	include( ../CMakePluginTpl.cmake )
+
+	include_directories( ${EIGEN_ROOT_DIR} )
 
 endif()
