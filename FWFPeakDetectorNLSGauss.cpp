@@ -51,9 +51,6 @@ struct LM_GaussianMixtureFunctor
 	{
 		assert(x.size() == 3 * m_peakCount);
 
-		fjac.setZero();
-
-		//sum the gaussians for each sample
 		for (size_t pi = 0; pi < m_peakCount; ++pi)
 		{
 			double mu    = x(3 * pi    );
@@ -73,9 +70,10 @@ struct LM_GaussianMixtureFunctor
 				double xc2 = xc*xc;
 				double exp_u = exp(-xc2 / (2 * sigma2));
 
-				fjac(s, 3 * pi    ) += amp * (xc / sigma2) * exp_u; //A * ((x - mu) / sigma^2) * exp(...)
-				fjac(s, 3 * pi + 1) += exp_u; //exp(...)
-				fjac(s, 3 * pi + 2) += (xc2 / (sigma * sigma2)) * amp * exp_u; //A * ((x - mu)^2 / sigma^3) * exp(...)
+				//don't forget the 'minus' sign because we compute 'y - f(x)'
+				fjac(s, 3 * pi    ) = - amp * (xc / sigma2) * exp_u; //A * ((x - mu) / sigma^2) * exp(...)
+				fjac(s, 3 * pi + 1) = - exp_u; //exp(...)
+				fjac(s, 3 * pi + 2) = - (xc2 / (sigma * sigma2)) * amp * exp_u; //A * ((x - mu)^2 / sigma^3) * exp(...)
 			}
 		}
 		return 0;
@@ -120,42 +118,6 @@ struct LM_GaussianMixtureFunctor
 		return 0;
 	}
 };
-
-bool FWFPeakDetectorNLSGauss::GenerateSyntheticWaveform(const std::vector<Peak>& peaks, size_t valueCount, std::vector<double>& values)
-{
-	try
-	{
-		values.resize(valueCount, 0);
-	}
-	catch (const std::bad_alloc&)
-	{
-		//not enough memory
-		return false;
-	}
-
-	//sum the gaussians for each sample
-	for (const Peak& peak : peaks)
-	{
-		if (peak.sigma == 0)
-		{
-			//invalid peak
-			assert(false);
-			continue;
-		}
-		
-		double sigma2_2 = 2 * peak.sigma * peak.sigma;
-		assert(sigma2_2 > 0);
-
-		for (size_t s = 0; s < valueCount; ++s)
-		{
-			double x = static_cast<double>(s) - peak.x;
-			double y = peak.y * exp(-x * x / sigma2_2);
-			values[s] += y;
-		}
-	}
-
-	return true;
-}
 
 bool FWFPeakDetectorNLSGauss::detectPeaks(	std::vector<Peak>& peakPositions,
 											const std::vector<double>& values,
@@ -239,7 +201,7 @@ bool FWFPeakDetectorNLSGauss::detectPeaks(	std::vector<Peak>& peakPositions,
 	//eventually use Levenberg-Marquardt to refine the peaks
 	{
 		LM_GaussianMixtureFunctor functor(peakPositions.size(), values);
-//#define USE_JACOBIAN
+#define USE_JACOBIAN //much faster
 #ifdef USE_JACOBIAN
 		Eigen::LevenbergMarquardt<LM_GaussianMixtureFunctor> lm(functor);
 #else
@@ -266,6 +228,42 @@ bool FWFPeakDetectorNLSGauss::detectPeaks(	std::vector<Peak>& peakPositions,
 			peakPositions[i].x     = x(3 * i    );
 			peakPositions[i].y     = x(3 * i + 1);
 			peakPositions[i].sigma = x(3 * i + 2);
+		}
+	}
+
+	return true;
+}
+
+bool FWFPeakDetectorNLSGauss::GenerateSyntheticWaveform(const std::vector<Peak>& peaks, size_t valueCount, std::vector<double>& values)
+{
+	try
+	{
+		values.resize(valueCount, 0);
+	}
+	catch (const std::bad_alloc&)
+	{
+		//not enough memory
+		return false;
+	}
+
+	//sum the gaussians for each sample
+	for (const Peak& peak : peaks)
+	{
+		if (peak.sigma == 0)
+		{
+			//invalid peak
+			assert(false);
+			continue;
+		}
+
+		double sigma2_2 = 2 * peak.sigma * peak.sigma;
+		assert(sigma2_2 > 0);
+
+		for (size_t s = 0; s < valueCount; ++s)
+		{
+			double x = static_cast<double>(s)-peak.x;
+			double y = peak.y * exp(-x * x / sigma2_2);
+			values[s] += y;
 		}
 	}
 
