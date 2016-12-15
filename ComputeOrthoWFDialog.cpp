@@ -17,6 +17,11 @@
 
 #include "ComputeOrthoWFDialog.h"
 
+//local
+#include "OrthoWFTools.h"
+#include "FWFPeakDetectorNaive.h"
+#include "FWFPeakDetectorNLSGauss.h"
+
 //qCC
 #include <ccBoundingBoxEditorDlg.h>
 #include <ccMainAppInterface.h>
@@ -28,6 +33,20 @@
 
 //Qt
 #include <QSettings>
+
+#include <ui_ComputeOrthoWFToCloudDialog.h>
+
+//dialog for conversion to a FWF cloud
+class ComputeOrthoWFToCloudDialog : public QDialog, public Ui::ComputeOrthoWFToCloudDialog
+{
+public:
+	ComputeOrthoWFToCloudDialog(QWidget* parent = 0)
+		: QDialog(parent)
+		, Ui::ComputeOrthoWFToCloudDialog()
+	{
+		setupUi(this);
+	}
+};
 
 ComputeOrthoWFDialog::ComputeOrthoWFDialog(ccMainAppInterface* app, QWidget* parent/*=0*/)
 	: QDialog(parent)
@@ -402,92 +421,6 @@ void ComputeOrthoWFDialog::computeGrid()
 	setCurrentGridValidity(true);
 }
 
-ccPointCloud* ComputeOrthoWFDialog::ConvertGridToGridCloud(	const FWFGrid& grid,
-															double minVal/*=0*/,
-															ccMainAppInterface* app/*=0*/)
-{
-	//count the number of valid cells
-	unsigned validCellCount = 0;
-	{
-		for (unsigned z = 0; z < grid.size().z; ++z)
-		{
-			const FWFGrid::Slice& slice = grid.getSlice(z);
-			for (const FWFGrid::Cell& cell : slice)
-			{
-				if (cell.weightSum != 0 && cell.mean() > minVal)
-				{
-					++validCellCount;
-				}
-			}
-		}
-	}
-
-	if (validCellCount == 0)
-	{
-		if (app)
-			app->dispToConsole("Grid has no valid cell?!", ccMainAppInterface::ERR_CONSOLE_MESSAGE);
-		return 0;
-	}
-
-	//create the cloud
-	ccPointCloud* cloud = 0;
-	{
-		cloud = new ccPointCloud("fwf_grid");
-		ccScalarField* amplitudes = new ccScalarField("Mean amplitude");
-		ccScalarField* stdDev = new ccScalarField("Amplitude std. dev.");
-
-		cloud->addScalarField(amplitudes);
-		cloud->addScalarField(stdDev);
-
-		if (!cloud->reserve(validCellCount))
-		{
-			//not enough memory
-			if (app)
-				app->dispToConsole("Not enough memory", ccMainAppInterface::ERR_CONSOLE_MESSAGE);
-			delete cloud;
-			return 0;
-		}
-
-		for (unsigned z = 0; z < grid.size().z; ++z)
-		{
-			const FWFGrid::Slice& slice = grid.getSlice(z);
-			const FWFGrid::Cell* _cell = &(slice[0]);
-
-			Tuple3i currentVoxel(0, 0, static_cast<int>(z));
-			for (unsigned y = 0; y < grid.size().y; ++y)
-			{
-				currentVoxel.y = static_cast<int>(y);
-				for (unsigned x = 0; x < grid.size().x; ++x, ++_cell)
-				{
-					if (_cell->weightSum == 0)
-					{
-						continue;
-					}
-					
-					double meanVal = _cell->mean();
-					if (meanVal > minVal)
-					{
-						currentVoxel.x = static_cast<int>(x);
-						CCVector3d C = grid.computeCellCenter(currentVoxel);
-
-						cloud->addPoint(CCVector3::fromArray(C.u));
-						amplitudes->addElement(meanVal);
-						stdDev->addElement(_cell->stdDev());
-					}
-				}
-			}
-		}
-
-		amplitudes->computeMinAndMax();
-		stdDev->computeMinAndMax();
-
-		cloud->setCurrentDisplayedScalarField(0);
-		cloud->showSF(true);
-	}
-
-	return cloud;
-}
-
 void ComputeOrthoWFDialog::exportToGridCloud()
 {
 	if (!m_app || !m_grid)
@@ -496,9 +429,7 @@ void ComputeOrthoWFDialog::exportToGridCloud()
 		return;
 	}
 
-
-	ccPointCloud* cloud = ComputeOrthoWFDialog::ConvertGridToGridCloud(*m_grid, minAmpDoubleSpinBox->value(), m_app);
-
+	ccPointCloud* cloud = OrthoWFTools::ConvertGridToGridCloud(*m_grid, minAmpDoubleSpinBox->value(), m_app);
 	if (cloud)
 	{
 		cloud->setName(m_cloud->getName() + ".fwf_grid");
@@ -518,4 +449,130 @@ void ComputeOrthoWFDialog::exportToFWFCloud()
 		return;
 	}
 
+	double rangeMin = 0, rangeMax = 0;
+	if (!m_grid->computeRange(rangeMin, rangeMax))
+	{
+		if (m_app)
+			m_app->dispToConsole("Grid has no valid cell?!", ccMainAppInterface::ERR_CONSOLE_MESSAGE);
+		return;
+	}
+
+	//mean peak value
+	static double s_minPeakVal = rangeMax + 1.0;
+	if (s_minPeakVal > rangeMax)
+	{
+		s_minPeakVal = (rangeMin + rangeMax) / 2;
+	}
+	static int s_peakDetectorIndex = 0;
+	static int s_maxReturnCount = 2;
+	static int s_bpsMode = 1;
+	static int s_numberOfSamples = 64;
+
+	ComputeOrthoWFToCloudDialog owf2cloudDlg(this);
+
+	//load parameters
+	owf2cloudDlg.minAmplitudeDoubleSpinBox->setRange(rangeMin, rangeMax);
+	owf2cloudDlg.minAmplitudeDoubleSpinBox->setToolTip(QString("Range: [%1 ; %2]").arg(rangeMin).arg(rangeMax));
+	owf2cloudDlg.minAmplitudeDoubleSpinBox->setValue(s_minPeakVal);
+	owf2cloudDlg.echoDetectorComboBox->addItem("Naive");
+	owf2cloudDlg.echoDetectorComboBox->addItem("NLS_Gauss");
+	owf2cloudDlg.echoDetectorComboBox->setCurrentIndex(s_peakDetectorIndex);
+	owf2cloudDlg.maxReturnCountSpinBox->setValue(s_maxReturnCount);
+	owf2cloudDlg.bpsComboBox->setCurrentIndex(s_bpsMode);
+	owf2cloudDlg.sampleCountSpinBox->setValue(s_numberOfSamples);
+	
+	if (!owf2cloudDlg.exec())
+	{
+		//process cancelled by the user
+		return;
+	}
+
+	//save parameters
+	s_minPeakVal = owf2cloudDlg.minAmplitudeDoubleSpinBox->value();
+	s_peakDetectorIndex = owf2cloudDlg.echoDetectorComboBox->currentIndex();
+	s_maxReturnCount = owf2cloudDlg.maxReturnCountSpinBox->value();
+	s_bpsMode = owf2cloudDlg.bpsComboBox->currentIndex();
+	s_numberOfSamples = owf2cloudDlg.sampleCountSpinBox->value();
+
+	//peak detector
+	FWFPeakDetectorInterface* detector = 0;
+	switch (s_peakDetectorIndex)
+	{
+	case 0:
+		detector = new FWFPeakDetectorNaive;
+		break;
+	case 1:
+		detector = new FWFPeakDetectorNLSGauss;
+		break;
+	default:
+		assert(false);
+		if (m_app)
+			m_app->dispToConsole("Internal error: invalid peak detector", ccMainAppInterface::ERR_CONSOLE_MESSAGE);
+		return;
+	}
+
+	WaveformDescriptor descriptor;
+	switch (s_bpsMode)
+	{
+	case 0:
+		descriptor.bitsPerSample = 8;
+		break;
+	case 1:
+		descriptor.bitsPerSample = 16;
+		break;
+	case 2:
+		descriptor.bitsPerSample = 32;
+		break;
+	default:
+		assert(false);
+		descriptor.bitsPerSample = 16;
+		break;
+	}
+
+	descriptor.numberOfSamples = s_numberOfSamples;
+
+	//set the gain and offset automatically
+	descriptor.digitizerOffset = rangeMin;
+	if (descriptor.digitizerOffset > 0)
+	{
+		//auto-shift to 0
+		descriptor.digitizerOffset = 0;
+	}
+	descriptor.digitizerGain = (rangeMax - descriptor.digitizerOffset) / (1 << descriptor.bitsPerSample);
+
+	//compute the right sampling rate
+	//1) find the first valid waveform
+	for (const ccWaveform& w : m_cloud->waveforms())
+	{
+		if (w.descriptorID() != 0 && m_cloud->fwfDescriptors().contains(w.descriptorID()))
+		{
+			WaveformDescriptor& d = m_cloud->fwfDescriptors()[w.descriptorID()];
+
+			double sampleStep = w.beamDir().normd();
+			double gridStep = m_grid->steps().z;
+
+			descriptor.samplingRate_ps = static_cast<uint32_t>(gridStep * d.samplingRate_ps / sampleStep);
+			break;
+		}
+	}
+
+	ccPointCloud* cloud = OrthoWFTools::ConvertGridToFWFCloud(	*m_grid,
+																detector,
+																s_maxReturnCount,
+																descriptor,
+																s_minPeakVal,
+																m_app);
+
+	delete detector;
+	detector = 0;
+
+	if (cloud)
+	{
+		cloud->setName(m_cloud->getName() + ".fwf");
+		if (m_cloud->getParent())
+		{
+			m_cloud->getParent()->addChild(cloud);
+		}
+		m_app->addToDB(cloud);
+	}
 }

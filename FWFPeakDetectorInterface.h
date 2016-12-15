@@ -43,12 +43,26 @@ public:
 	};
 
 	//! Peak
+	/** \warning The 'x', coordinate and 'sigma' (width) of the peak are expressed in terms of sample 'index' (not in picoseconds, etc.)
+	**/
 	struct Peak
 	{
-		Peak(double _x = 0.0, double _y = 0.0, double _s = 0.0) : x(_x), y(_y), sigma(_s) {}
-		double x; //warning: position in terms of 'index'
+		//! Default constructor
+		Peak(double _x = 0.0, double _y = 0.0, double _s = MinSigma()) : x(_x), y(_y), sigma(_s) {}
+		
+		//! Peak position (in terms of index)
+		double x;
+		//! Peak height (amplitude)
 		double y;
+		//! Peak 'sigma' (e.g. 1/3rd of the 'width' for Gaussian pulses)
 		double sigma;
+
+		//! Returns the minimum theoretical peak 'sigma' (width)
+		static double MinSigma()
+		{
+			//peak width can't be less than one 'pixel', i.e. +/-0.5 => 3 * sigma >= 0.5 => sigma > 0.16
+			return 0.16;
+		}
 	};
 
 	//! Detect the peaks
@@ -56,16 +70,14 @@ public:
 								const std::vector<double>& values,
 								const BaseParameters& baseParameters) = 0;
 
+public: //helpers
+
 	//! Smooth a signal
 	/** Gaussian filter (+/- 3*sigma, sigma being expressed in number of samples)
 	**/
 	static bool SmoothSignal(	std::vector<double>& values,
 								double sigma = 1.0);
 
-	//! Naive peak detector (highest local peaks)
-	static bool NaiveDetector(	std::vector<int>& peakPositions,
-								const std::vector<double>& values,
-								const BaseParameters& baseParameters );
 };
 
 #endif //Q_FWF_PEAK_DETECTOR_INTERFACE_HEADER

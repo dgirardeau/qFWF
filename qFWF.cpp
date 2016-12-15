@@ -155,6 +155,7 @@ void qFWF::doConvertWFToCloudAction()
 
 	static double s_minAplitude = 0;
 	dialog.minAmplitudeDoubleSpinBox->setRange(overallMin, overallMax);
+	dialog.minAmplitudeDoubleSpinBox->setToolTip(QString("Range: [%1 ; %2]").arg(overallMin).arg(overallMax));
 	dialog.minAmplitudeDoubleSpinBox->setValue(s_minAplitude);
 
 	if (!dialog.exec())

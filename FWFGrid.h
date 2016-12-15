@@ -24,6 +24,7 @@
 //system
 #include <limits>
 #include <vector>
+#include <algorithm>
 
 //! Raster grid type
 struct FWFGrid
@@ -93,6 +94,40 @@ struct FWFGrid
 		return maxVal;
 	}
 	
+	bool computeRange(double& minVal, double& maxVal) const
+	{
+		minVal = maxVal = 0;
+		//count the number of valid cells
+		bool firstTest = true;
+		{
+			for (unsigned z = 0; z < m_size.z; ++z)
+			{
+				const FWFGrid::Slice& slice = getSlice(z);
+				for (const FWFGrid::Cell& cell : slice)
+				{
+					if (cell.weightSum != 0)
+					{
+						double val = cell.mean();
+						if (firstTest)
+						{
+							firstTest = false;
+							minVal = maxVal = val;
+						}
+						else
+						{
+							if (val < minVal)
+								minVal = val;
+							else if (val > maxVal)
+								maxVal = val;
+						}
+					}
+				}
+			}
+		}
+
+		return !firstTest;
+	}
+
 	//! Clears the grid
 	void clear()
 	{
@@ -138,6 +173,27 @@ struct FWFGrid
 			&&	static_cast<unsigned>(pos.z) < m_size.z;
 	}
 
+	//! Counts the number of valid cells above a given value
+	unsigned countValidCells(double minVal/*=0*/) const
+	{
+		unsigned validCellCount = 0;
+		{
+			for (unsigned z = 0; z < size().z; ++z)
+			{
+				const FWFGrid::Slice& slice = getSlice(z);
+				for (const FWFGrid::Cell& cell : slice)
+				{
+					if (cell.weightSum != 0 && cell.mean() >= minVal)
+					{
+						++validCellCount;
+					}
+				}
+			}
+		}
+
+		return validCellCount;
+	}
+
 	//! Grid cell
 	struct Cell
 	{
@@ -158,15 +214,21 @@ struct FWFGrid
 	};
 
 	//! Grid size
-	const Tuple3ui& size() const { return m_size; }
+	inline const Tuple3ui& size() const { return m_size; }
+
+	//! Grid steps
+	inline const CCVector3d& steps() const { return m_steps; }
 
 	//! Slice (XY)
 	typedef std::vector<Cell> Slice;
 
 	//! Returns a given slice
-	Slice& getSlice(size_t z) { return m_data[z]; }
+	inline Slice& getSlice(size_t z) { return m_data[z]; }
 	//! Returns a given slice (const version)
-	const Slice& getSlice(size_t z) const { return m_data[z]; }
+	inline const Slice& getSlice(size_t z) const { return m_data[z]; }
+
+	//! Grid min corder
+	inline const CCVector3d& minCorner() const { return m_minCorner; }
 
 protected:
 

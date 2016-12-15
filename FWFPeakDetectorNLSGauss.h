@@ -20,9 +20,6 @@
 
 #include "FWFPeakDetectorInterface.h"
 
-//System
-#include <vector>
-
 //! Peak detector based on Non-linear Least Squares (Levenberg-Marquardt) fit of a Gaussian mixture
 class FWFPeakDetectorNLSGauss : public FWFPeakDetectorInterface
 {

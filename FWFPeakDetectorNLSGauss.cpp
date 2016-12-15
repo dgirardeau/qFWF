@@ -17,6 +17,9 @@
 
 #include "FWFPeakDetectorNLSGauss.h"
 
+//Local
+#include "FWFPeakDetectorNaive.h"
+
 //Eigen (for LM optimization)
 #include <Eigen/Dense>
 #include <unsupported/Eigen/NonLinearOptimization>
@@ -24,8 +27,6 @@
 
 //system
 #include <assert.h>
-
-static const double s_minSigma = 0.16; //peak width can't be less than one 'pixel', i.e. +/-0.5 => 3 * sigma >= 0.5 => sigma > 0.16
 
 // Generic functor
 struct LM_GaussianMixtureFunctor
@@ -57,9 +58,9 @@ struct LM_GaussianMixtureFunctor
 			double amp   = x(3 * pi + 1);
 			double sigma = x(3 * pi + 2);
 
-			//mu    = std::max(mu, 0.0);
-			//amp   = std::max(amp, 0.0);
-			//sigma = std::max(sigma, s_minSigma);
+			mu    = std::max(mu   , 0.0);
+			amp   = std::max(amp  , 0.0);
+			sigma = std::max(sigma, FWFPeakDetectorInterface::Peak::MinSigma());
 
 			double sigma2 = sigma * sigma;
 			assert(sigma2 > 0);
@@ -94,9 +95,9 @@ struct LM_GaussianMixtureFunctor
 			double amp   = x(3 * pi + 1);
 			double sigma = x(3 * pi + 2);
 
-			//mu    = std::max(mu   , 0.0);
-			//amp   = std::max(amp  , 0.0);
-			//sigma = std::max(sigma, s_minSigma);
+			mu    = std::max(mu   , 0.0);
+			amp   = std::max(amp  , 0.0);
+			sigma = std::max(sigma, FWFPeakDetectorInterface::Peak::MinSigma());
 
 			double sigma2_2 = 2 * sigma * sigma;
 			assert(sigma2_2 > 0);
@@ -155,8 +156,8 @@ bool FWFPeakDetectorNLSGauss::detectPeaks(	std::vector<Peak>& peakPositions,
 	}
 
 	//now detect the peaks in a naive way
-	std::vector<int> naivePeakPositions;
-	if (!NaiveDetector(naivePeakPositions, smoothValues, baseParameters))
+	std::vector<Peak> naivePeakPositions;
+	if (!FWFPeakDetectorNaive().detectPeaks(naivePeakPositions, smoothValues, baseParameters))
 	{
 		return false;
 	}
@@ -168,15 +169,20 @@ bool FWFPeakDetectorNLSGauss::detectPeaks(	std::vector<Peak>& peakPositions,
 		return true;
 	}
 
-	for (int index : naivePeakPositions)
+	for (const Peak& naivePeak : naivePeakPositions)
 	{
-		Peak peak(static_cast<double>(index), values[index], s_minSigma);
+		Peak peak = naivePeak;
+
+		//(approximate) position of the peak
+		int valueCount = static_cast<int>(values.size());
+		int index = std::min(static_cast<int>(peak.x), valueCount - 1);
 		
+		//use the real amplitude
+		peak.y = values[index];
 		if (peak.y > 0)
 		{
 			//evaluate the standard deviation on a few samples
 			static const int testSize = 5;
-			int valueCount = static_cast<int>(values.size());
 			int dMinus = (index >= testSize ? testSize : index);
 			int dPlus = (index + testSize < valueCount - 1 ? testSize : valueCount - 1 - index);
 			int d = std::min(dMinus, dPlus);

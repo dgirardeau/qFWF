@@ -83,11 +83,6 @@ protected: //methods
 	//! Sets the current grid 'validity'
 	void setCurrentGridValidity(bool state);
 
-	//! Converts a grid to a point cloud
-	static ccPointCloud* ConvertGridToGridCloud(const FWFGrid& grid,
-												double minVal = 0,
-												ccMainAppInterface* app = 0);
-
 protected: //members
 
 	//! Application interface
