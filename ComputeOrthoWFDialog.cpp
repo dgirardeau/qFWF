@@ -136,20 +136,17 @@ bool ComputeOrthoWFDialog::setCloud(ccPointCloud* cloud, ccProgressDialog* pDlg/
 				return false;
 			}
 
-			const ccWaveform& w = cloud->fwfData()[pi];
-
-			uint8_t descriptorID = w.descriptorID();
-			if (descriptorID == 0 || !descriptors.contains(descriptorID))
+			const ccWaveformProxy& w = cloud->waveformProxy(pi);
+			if (!w.isValid())
 			{
 				//no valid descriptor
 				continue;
 			}
 
 			const CCVector3* P = cloud->getPoint(pi);
-			const WaveformDescriptor& d = descriptors[descriptorID];
 			//we'll use the first and last points to increase the bounding-box
-			CCVector3 Q0 = w.getSamplePos(0, *P, d);
-			CCVector3 Q1 = w.getSamplePos(d.numberOfSamples - 1, *P, d);
+			CCVector3 Q0 = w.getSamplePos(0, *P);
+			CCVector3 Q1 = w.getSamplePos(w.numberOfSamples() - 1, *P);
 			fwfBBox.add(Q0);
 			fwfBBox.add(Q1);
 		}
@@ -327,27 +324,24 @@ void ComputeOrthoWFDialog::computeGrid()
 				return;
 			}
 
-			const ccWaveform& w = m_cloud->fwfData()[pi];
-
-			uint8_t descriptorID = w.descriptorID();
-			if (descriptorID == 0 || !descriptors.contains(descriptorID))
+			const ccWaveformProxy& w = m_cloud->waveformProxy(pi);
+			if (!w.isValid())
 			{
 				//no valid descriptor
 				continue;
 			}
 
 			const CCVector3* P = m_cloud->getPoint(pi);
-			const WaveformDescriptor& d = descriptors[descriptorID];
 			
-			for (uint32_t si = 0; si < d.numberOfSamples; ++si)
+			for (uint32_t si = 0; si < w.numberOfSamples(); ++si)
 			{
-				double amplitude = w.getSample(si, d);
+				double amplitude = w.getSample(si);
 				if (amplitude == 0)
 				{
 					continue;
 				}
 				
-				CCVector3 Q = w.getSamplePos(si, *P, d);
+				CCVector3 Q = w.getSamplePos(si, *P);
 				
 				//compute the eqiuvalent position in the grid
 				Tuple3i voxelPos = m_grid->computeCellPos(Q);

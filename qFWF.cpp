@@ -187,7 +187,7 @@ void qFWF::doConvertWFToCloudAction()
 		pDlg.setLabelText("Counting candidates...");
 		QCoreApplication::processEvents();
 
-		assert(cloud->fwfData().size() == cloud->size());
+		assert(cloud->waveforms().size() == cloud->size());
 		for (unsigned pi = 0; pi < cloud->size(); ++pi)
 		{
 			if (!nProgress.oneStep())
@@ -196,25 +196,22 @@ void qFWF::doConvertWFToCloudAction()
 				return;
 			}
 
-			const ccWaveform& w = cloud->fwfData()[pi];
-
 			if (returnNumbers && returnNumbers->getValue(pi) > 1)
 			{
 				//skip secondary echos
 				continue;
 			}
 
-			uint8_t descriptorID = w.descriptorID();
-			if (descriptorID == 0 || !descriptors.contains(descriptorID))
+			const ccWaveformProxy& w = cloud->waveformProxy(pi);
+			if (!w.isValid())
 			{
 				//no valid descriptor
 				continue;
 			}
 
-			const WaveformDescriptor& d = descriptors[descriptorID];
-			for (uint32_t i = 0; i < d.numberOfSamples; ++i)
+			for (uint32_t i = 0; i < w.numberOfSamples(); ++i)
 			{
-				if (w.getSample(i, d) >= s_minAplitude)
+				if (w.getSample(i) >= s_minAplitude)
 				{
 					++valueCount;
 				}
@@ -271,29 +268,26 @@ void qFWF::doConvertWFToCloudAction()
 				return;
 			}
 
-			const ccWaveform& w = cloud->fwfData()[pi];
-			
 			if (returnNumbers && returnNumbers->getValue(pi) > 1)
 			{
 				//skip secondary echos
 				continue;
 			}
 
-			uint8_t descriptorID = w.descriptorID();
-			if (descriptorID == 0 || !descriptors.contains(descriptorID))
+			const ccWaveformProxy& w = cloud->waveformProxy(pi);
+			if (!w.isValid())
 			{
 				//no valid descriptor
 				continue;
 			}
 
 			const CCVector3* P = cloud->getPoint(pi);
-			const WaveformDescriptor& d = descriptors[descriptorID];
-			for (uint32_t i = 0; i < d.numberOfSamples; ++i)
+			for (uint32_t i = 0; i < w.numberOfSamples(); ++i)
 			{
-				double amplitude = w.getSample(i, d);
+				double amplitude = w.getSample(i);
 				if (amplitude >= s_minAplitude)
 				{
-					CCVector3 Q = w.getSamplePos(i, *P, d);
+					CCVector3 Q = w.getSamplePos(i, *P);
 					newCloud->addPoint(Q);
 					amplitudes->addElement(amplitude);
 				}
@@ -350,15 +344,18 @@ void qFWF::doTestPeakExtraction()
 	}
 
 	//get the waveform
-	const ccWaveform& w = cloud->fwfData()[pointIndex];
-	assert(cloud->fwfDescriptors().contains(w.descriptorID()));
-	const WaveformDescriptor& wd = cloud->fwfDescriptors()[w.descriptorID()];
+	const ccWaveformProxy& w = cloud->waveformProxy(pointIndex);
+	if (!w.isValid())
+	{
+		//no valid descriptor
+		return;
+	}
 
 	try
 	{
 		//then get the values
 		std::vector<double> values;
-		if (!w.decodeSamples(values, wd))
+		if (!w.decodeSamples(values))
 		{
 			//not enough memory?
 			m_app->dispToConsole("Failed to decode the waveform values", ccMainAppInterface::WRN_CONSOLE_MESSAGE);
@@ -377,7 +374,7 @@ void qFWF::doTestPeakExtraction()
 			//Gaussian filter 'sigma' (in ns)
 			double sigma_ns = 1;
 			//Equivalent in terms of 'samples'
-			specifParams.smoothWaveformSigma = static_cast<double>(sigma_ns * 1000) / wd.samplingRate_ps;
+			specifParams.smoothWaveformSigma = static_cast<double>(sigma_ns * 1000) / w.descriptor().samplingRate_ps;
 		}
 		detector.setSpecificParameters(specifParams);
 
@@ -443,7 +440,7 @@ void qFWF::doTestPeakExtraction()
 
 			for (uint32_t i = 0; i < values.size(); ++i)
 			{
-				stream << i * wd.samplingRate_ps << ";" << values[i] << ";" << smoothValues[i] << ";" << syntheticValues[i] << ";" << peakValues[i] << "; " << peakPos[i] << "; " << peakSigma[i] << endl;
+				stream << i * w.descriptor().samplingRate_ps << ";" << values[i] << ";" << smoothValues[i] << ";" << syntheticValues[i] << ";" << peakValues[i] << "; " << peakPos[i] << "; " << peakSigma[i] << endl;
 			}
 
 			file.close();
