@@ -47,6 +47,28 @@ struct LM_GaussianMixtureFunctor
 	int inputs() const { return static_cast<int>(m_peakCount * 3); }
 	int values() const { return static_cast<int>(m_values.size()); }
 
+	void filterInputValues(double& mu, double& amp, double& sigma) const
+	{
+		if (mu < 1.0)
+		{
+			mu = exp(mu - 1.0);
+		}
+		else if (mu >= static_cast<double>(m_values.size() - 1))
+		{
+			mu = static_cast<double>(m_values.size() - 1) + exp(static_cast<double>(m_values.size() - 1) - mu);
+		}
+
+		//amp = std::max(amp, 0.0);
+		if (!isfinite(sigma))
+		{
+			sigma = FWFPeakDetectorInterface::Peak::MinSigma();
+		}
+		else if (sigma < 2 * FWFPeakDetectorInterface::Peak::MinSigma())
+		{
+			sigma = FWFPeakDetectorInterface::Peak::MinSigma() + exp(sigma / (2 * FWFPeakDetectorInterface::Peak::MinSigma()) - 1.0);
+		}
+	}
+
 	//jacobian
 	int df(const Eigen::VectorXd &x, Eigen::MatrixXd &fjac) const
 	{
@@ -58,9 +80,7 @@ struct LM_GaussianMixtureFunctor
 			double amp   = x(3 * pi + 1);
 			double sigma = x(3 * pi + 2);
 
-			mu    = std::max(mu   , 0.0);
-			amp   = std::max(amp  , 0.0);
-			sigma = std::max(sigma, FWFPeakDetectorInterface::Peak::MinSigma());
+			filterInputValues(mu, amp, sigma);
 
 			double sigma2 = sigma * sigma;
 			assert(sigma2 > 0);
@@ -95,9 +115,7 @@ struct LM_GaussianMixtureFunctor
 			double amp   = x(3 * pi + 1);
 			double sigma = x(3 * pi + 2);
 
-			mu    = std::max(mu   , 0.0);
-			amp   = std::max(amp  , 0.0);
-			sigma = std::max(sigma, FWFPeakDetectorInterface::Peak::MinSigma());
+			filterInputValues(mu, amp, sigma);
 
 			double sigma2_2 = 2 * sigma * sigma;
 			assert(sigma2_2 > 0);
@@ -201,6 +219,7 @@ bool FWFPeakDetectorNLSGauss::detectPeaks(	std::vector<Peak>& peakPositions,
 			}
 		}
 		
+		assert(peak.x >= 0);
 		peakPositions.push_back(peak);
 	}
 
@@ -231,9 +250,16 @@ bool FWFPeakDetectorNLSGauss::detectPeaks(	std::vector<Peak>& peakPositions,
 		//update the Gaussians
 		for (size_t i = 0; i < peakPositions.size(); ++i)
 		{
-			peakPositions[i].x     = x(3 * i    );
-			peakPositions[i].y     = x(3 * i + 1);
-			peakPositions[i].sigma = x(3 * i + 2);
+			double mu    = x(3 * i    );
+			double amp   = x(3 * i + 1);
+			double sigma = x(3 * i + 2);
+
+			functor.filterInputValues(mu, amp, sigma);
+			assert(mu <= static_cast<double>(values.size()));
+
+			peakPositions[i].x =     mu;
+			peakPositions[i].y =     amp;
+			peakPositions[i].sigma = sigma;
 		}
 	}
 

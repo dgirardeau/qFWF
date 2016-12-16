@@ -116,12 +116,12 @@ bool ComputeOrthoWFDialog::setCloud(ccPointCloud* cloud, ccProgressDialog* pDlg/
 {
 	m_cloud = cloud;
 	m_bbEditorDlg->setBaseBBox(ccBBox());
-	
+	buttonFrame->setEnabled(false);
+
 	if (!m_cloud)
 	{
 		gridGroupBox->setEnabled(false);
 		interpGroupBox->setEnabled(false);
-		buttonFrame->setEnabled(false);
 		return false;
 	}
 
@@ -175,7 +175,6 @@ bool ComputeOrthoWFDialog::setCloud(ccPointCloud* cloud, ccProgressDialog* pDlg/
 
 	gridGroupBox->setEnabled(true);
 	interpGroupBox->setEnabled(true);
-	buttonFrame->setEnabled(true);
 
 	loadSettings();
 	updateGridSize();
@@ -226,12 +225,13 @@ void ComputeOrthoWFDialog::updateGridSize()
 	if (!computeGridSize(gridSize))
 	{
 		gridWidthLabel->setText("invalid");
-		buttonFrame->setEnabled(false);
-		return;
+		computePushButton->setEnabled(false);
 	}
-	
-	buttonFrame->setEnabled(true);
-	gridWidthLabel->setText(QString("%1 x %2 x %3").arg(gridSize.x).arg(gridSize.y).arg(gridSize.z));
+	else
+	{
+		gridWidthLabel->setText(QString("%1 x %2 x %3").arg(gridSize.x).arg(gridSize.y).arg(gridSize.z));
+		computePushButton->setEnabled(true);
+	}
 }
 
 ComputeOrthoWFDialog::InterpolationMethod ComputeOrthoWFDialog::getInterpolationMethod() const
@@ -461,9 +461,9 @@ void ComputeOrthoWFDialog::exportToFWFCloud()
 	static double s_minPeakVal = rangeMax + 1.0;
 	if (s_minPeakVal > rangeMax)
 	{
-		s_minPeakVal = (rangeMin + rangeMax) / 2;
+		s_minPeakVal = rangeMin + (rangeMax - rangeMin) / 5;
 	}
-	static int s_peakDetectorIndex = 0;
+	static int s_peakDetectorIndex = 1;
 	static int s_maxReturnCount = 2;
 	static int s_bpsMode = 1;
 	static int s_numberOfSamples = 64;
@@ -551,7 +551,8 @@ void ComputeOrthoWFDialog::exportToFWFCloud()
 			double sampleStep = w.beamDir().normd();
 			double gridStep = m_grid->steps().z;
 
-			descriptor.samplingRate_ps = static_cast<uint32_t>(gridStep * d.samplingRate_ps / sampleStep);
+			//descriptor.samplingRate_ps = static_cast<uint32_t>(gridStep * d.samplingRate_ps / sampleStep);
+			descriptor.samplingRate_ps = 1000;
 			break;
 		}
 	}

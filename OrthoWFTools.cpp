@@ -174,22 +174,43 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 			++bytesPerSample;
 		}
 
+		unsigned sliceSize = grid.size().x * grid.size().y;
+
 		//progress dialog
 		ccProgressDialog pDlg(app ? app->getMainWindow() : 0);
-		CCLib::NormalizedProgress nProgress(&pDlg, grid.size().x * grid.size().y);
+		CCLib::NormalizedProgress nProgress(&pDlg, sliceSize);
 		pDlg.setWindowTitle("FWF");
 		pDlg.setLabelText("Creating the waveforms...");
 		pDlg.show();
 		QCoreApplication::processEvents();
 
+//#if defined(_OPENMP)
+//		bool error = false;
+//#pragma omp parallel for
+//		for (int xy = 0; xy < static_cast<int>(sliceSize); ++xy)
+//		{
+//			if (error)
+//			{
+//				continue;
+//			}
+//			unsigned x = (static_cast<unsigned>(xy) % grid.size().x);
+//			unsigned y = (static_cast<unsigned>(xy)  - x) / grid.size().x;
+//			{
+//#else
 		for (unsigned y = 0; y < grid.size().y; ++y)
 		{
 			for (unsigned x = 0; x < grid.size().x; ++x)
 			{
+//#endif
 				if (!nProgress.oneStep())
 				{
 					//process cancelled by the user
+//#if defined(_OPENMP)
+//					error = true;
+//					continue;
+//#else
 					return 0;
+//#endif
 				}
 				
 				//grab the signal 'values'
@@ -227,7 +248,12 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 						{
 							if (app)
 								app->dispToConsole("Not enough memory", ccMainAppInterface::ERR_CONSOLE_MESSAGE);
+//#if defined(_OPENMP)
+//							error = true;
+//							continue;
+//#else
 							return 0;
+//#endif
 						}
 						cloud->waveforms().reserve(cloud->size() + s_cloudBaseIncrement);
 					}
@@ -243,8 +269,9 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 					{
 						//add the peak point
 						CCVector3d P = columnOrigin;
-						P.z += peak.x * grid.steps().z;
-						cloud->addPoint(CCVector3::fromArray(P.u));
+						P.z -= peak.x * grid.steps().z;
+						CCVector3 PP = CCVector3::fromArray(P.u);
+						cloud->addPoint(PP);
 
 						intensitySF->addElement(peak.y);
 
@@ -318,7 +345,13 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 								assert(false);
 								if (app)
 									app->dispToConsole("Internal error: wrong 'bps' setting", ccMainAppInterface::ERR_CONSOLE_MESSAGE);
+//#if defined(_OPENMP)
+//								error = true;
+//								i = copyStopIndex;
+//								break;
+//#else
 								return 0;
+//#endif
 							}
 						}
 						previousWaveStop = copyStopIndex;
@@ -328,9 +361,17 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 						{
 							w.setDescriptorID(0);
 							w.setDataDescription(waveOffset, descriptor.numberOfSamples * bytesPerSample);
-							w.setBeamDir(CCVector3f(0, 0, -1.0f));
-							assert(peak.x > static_cast<float>(previousWaveStart));
+							w.setBeamDir(CCVector3f(0, 0, grid.steps().z / descriptor.samplingRate_ps));
+							assert(peak.x >= static_cast<float>(previousWaveStart));
 							w.setEchoTime_ps(static_cast<uint32_t>((peak.x - previousWaveStart) * descriptor.samplingRate_ps));
+#ifdef _DEBUG
+							CCVector3 P0 = w.getSamplePos(0, PP, descriptor);
+							CCVector3d Q0 = columnOrigin;
+							Q0.z -= previousWaveStart * grid.steps().z;
+							double error = (CCVector3::fromArray(Q0.u) - P0).normd();
+							assert(error < 1.0e-4);
+#endif
+
 						}
 						cloud->waveforms().push_back(w);
 					}
