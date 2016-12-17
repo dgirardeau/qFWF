@@ -51,9 +51,11 @@ ccPointCloud* OrthoWFTools::ConvertGridToGridCloud(	const FWFGrid& grid,
 		cloud = new ccPointCloud("fwf_grid");
 		ccScalarField* amplitudes = new ccScalarField("Mean amplitude");
 		ccScalarField* stdDev = new ccScalarField("Amplitude std. dev.");
+		//ccScalarField* weights = new ccScalarField("Weights");
 
 		cloud->addScalarField(amplitudes);
 		cloud->addScalarField(stdDev);
+		//cloud->addScalarField(weights);
 
 		if (!cloud->reserve(validCellCount))
 		{
@@ -89,6 +91,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToGridCloud(	const FWFGrid& grid,
 						cloud->addPoint(CCVector3::fromArray(C.u));
 						amplitudes->addElement(meanVal);
 						stdDev->addElement(_cell->stdDev());
+						//weights->addElement(_cell->weightSum);
 					}
 				}
 			}
@@ -96,6 +99,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToGridCloud(	const FWFGrid& grid,
 
 		amplitudes->computeMinAndMax();
 		stdDev->computeMinAndMax();
+		//weights->computeMinAndMax();
 
 		cloud->setCurrentDisplayedScalarField(0);
 		cloud->showSF(true);
@@ -264,7 +268,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 					int previousWaveStop = -1;
 					size_t waveOffset = fwfData->size();
 
-					//add the corresponding points
+					//create the corresponding FWF-LAS points
 					for (const FWFPeakDetectorInterface::Peak& peak : peaks)
 					{
 						//add the peak point
@@ -291,6 +295,14 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 							copyStartIndex = peakIndex - leftMargin;
 							assert(copyStartIndex >= 0);
 							copyStopIndex = copyStartIndex + static_cast<int>(descriptor.numberOfSamples);
+							if (copyStopIndex > static_cast<int>(waveform.size()) && copyStartIndex > 0)
+							{
+								int shift = std::min(copyStartIndex, copyStopIndex - static_cast<int>(waveform.size()));
+								copyStartIndex -= shift;
+								assert(copyStartIndex >= 0);
+								copyStopIndex  -= shift;
+								assert(copyStopIndex >= 0);
+							}
 							
 							previousWaveStart = copyStartIndex;
 							waveOffset = fwfData->size();
@@ -359,7 +371,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 						//add the waveform
 						ccWaveform w;
 						{
-							w.setDescriptorID(0);
+							w.setDescriptorID(1);
 							w.setDataDescription(waveOffset, descriptor.numberOfSamples * bytesPerSample);
 							w.setBeamDir(CCVector3f(0, 0, grid.steps().z / descriptor.samplingRate_ps));
 							assert(peak.x >= static_cast<float>(previousWaveStart));
@@ -369,11 +381,17 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 							CCVector3d Q0 = columnOrigin;
 							Q0.z -= previousWaveStart * grid.steps().z;
 							double error = (CCVector3::fromArray(Q0.u) - P0).normd();
-							assert(error < 1.0e-4);
+							assert(error < 1.0e-3);
 #endif
 
 						}
 						cloud->waveforms().push_back(w);
+
+						if (false)
+						{
+							ccWaveformProxy p = cloud->waveformProxy(cloud->size() - 1);
+							p.toASCII("waveform_extracted.asc");
+						}
 					}
 				}
 			}

@@ -64,16 +64,8 @@ protected: //methods
 	//! Compute the grid size
 	bool computeGridSize(Tuple3ui& size) const;
 
-	//! Interpolation method
-	enum InterpolationMethod
-	{
-		LINEAR,
-		INV_SQUARE,
-		INV_EXP
-	};
-
 	//! Returns the selected interpolation method
-	InterpolationMethod getInterpolationMethod() const;
+	FWFGrid::InterpolationMethod getInterpolationMethod() const;
 
 	//! Loads parameters from persistent settings
 	void loadSettings();

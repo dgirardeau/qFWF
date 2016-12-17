@@ -33,6 +33,7 @@
 
 //Qt
 #include <QSettings>
+#include <QMainWindow>
 
 #include <ui_ComputeOrthoWFToCloudDialog.h>
 
@@ -234,20 +235,20 @@ void ComputeOrthoWFDialog::updateGridSize()
 	}
 }
 
-ComputeOrthoWFDialog::InterpolationMethod ComputeOrthoWFDialog::getInterpolationMethod() const
+FWFGrid::InterpolationMethod ComputeOrthoWFDialog::getInterpolationMethod() const
 {
 	switch (interpMethodComboBox->currentIndex())
 	{
 	case 0:
-		return LINEAR;
+		return FWFGrid::LINEAR;
 	case 1:
-		return INV_SQUARE;
+		return FWFGrid::INV_SQUARE;
 	case 2:
-		return INV_EXP;
+		return FWFGrid::INV_EXP;
 	}
 
 	assert(false);
-	return LINEAR;
+	return FWFGrid::LINEAR;
 }
 
 void ComputeOrthoWFDialog::setCurrentGridValidity(bool state)
@@ -313,105 +314,15 @@ void ComputeOrthoWFDialog::computeGrid()
 
 	gridInfoLabel->setText("Computing grid");
 
+	//get parameters
+	double radius = radiusDoubleSpinBox->value();
+	FWFGrid::InterpolationMethod interpMethod = getInterpolationMethod();
+
 	//now fill it
+	if (!m_grid->project(m_cloud, radius, interpMethod, (m_app ? m_app->getMainWindow() : 0)))
 	{
-		//progress dialog
-		ccProgressDialog pDlg(m_app ? m_app->getMainWindow() : 0);
-		CCLib::NormalizedProgress nProgress(&pDlg, static_cast<unsigned>(m_cloud->size()));
-		pDlg.setWindowTitle("FWF");
-		pDlg.setLabelText("Projecting the waveforms...");
-		pDlg.show();
-		QCoreApplication::processEvents();
-
-		const ccPointCloud::FWFDescriptorSet& descriptors = m_cloud->fwfDescriptors();
-
-		double radius = radiusDoubleSpinBox->value();
-		double squareRadius = radius * radius;
-		double sigma = radius / 3.0;
-		double expFactor = -1.0 / (2.0 * sigma * sigma); // = - 9/2 * squareRadius
-		
-		int kernelSize = static_cast<int>(ceil(radius / steps.x));
-
-		InterpolationMethod interpMethod = getInterpolationMethod();
-
-		for (unsigned pi = 0; pi < m_cloud->size(); ++pi)
-		{
-			if (!nProgress.oneStep())
-			{
-				//process cancelled by the user
-				m_grid.clear();
-				return;
-			}
-
-			const ccWaveformProxy& w = m_cloud->waveformProxy(pi);
-			if (!w.isValid())
-			{
-				//no valid descriptor
-				continue;
-			}
-
-			const CCVector3* P = m_cloud->getPoint(pi);
-			
-			for (uint32_t si = 0; si < w.numberOfSamples(); ++si)
-			{
-				double amplitude = w.getSample(si);
-				if (amplitude == 0)
-				{
-					continue;
-				}
-				
-				CCVector3 Q = w.getSamplePos(si, *P);
-				
-				//compute the eqiuvalent position in the grid
-				Tuple3i voxelPos = m_grid->computeCellPos(Q);
-				if (!m_grid->inbounds(voxelPos))
-				{
-					assert(false);
-					continue;
-				}
-
-				//get the right slice
-				FWFGrid::Slice& slice = m_grid->getSlice(voxelPos.z);
-
-				//now add the contribution of this point to its neighbors
-				int minX = std::max(0, voxelPos.x - kernelSize);
-				int maxX = std::min(static_cast<int>(gridSize.x) - 1, voxelPos.x + kernelSize);
-				int minY = std::max(0, voxelPos.y - kernelSize);
-				int maxY = std::min(static_cast<int>(gridSize.y) - 1, voxelPos.y + kernelSize);
-				for (int i = minX; i <= maxX; ++i)
-				{
-					double dx = Q.x - (minCorner.x + (i + 0.5) * steps.x);
-					double dx2 = dx * dx;
-					for (int j = minY; j <= maxY; ++j)
-					{
-						double dy = Q.y - (minCorner.y + (j + 0.5) * steps.y);
-						double r2 = dx2 + dy*dy;
-						if (r2 <= squareRadius)
-						{
-							FWFGrid::Cell& cell = slice[j * gridSize.x + i];
-
-							double weight = 1.0;
-							switch (interpMethod)
-							{
-							case LINEAR:
-								weight = (radius - sqrt(r2)) / radius; //weight proportional to the distance to the center
-								break;
-							case INV_SQUARE:
-								weight += (squareRadius - r2) / squareRadius; //weight proportional to the squared distance to the center
-								break;
-							case INV_EXP:
-								weight += exp(expFactor * r2); //weight proportional to the exponential of the inversed distance to the center
-								break;
-							default:
-								assert(false);
-							}
-
-							cell.add(amplitude, weight);
-						}
-					}
-				}
-			}
-		}
+		m_grid.clear();
+		return;
 	}
 
 	double maxVal = m_grid->computeMaxVal();

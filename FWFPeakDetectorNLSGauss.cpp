@@ -28,6 +28,19 @@
 //system
 #include <assert.h>
 
+static const double s_penaltyK = 1000.0;
+
+static double Penalty(double x)
+{
+	return s_penaltyK * x * x * x; //k * x^3
+}
+
+static double PenaltyDeriv(double x)
+{
+	return 3 * s_penaltyK * x * x; // 3 * k * x^2
+}
+
+
 // Generic functor
 struct LM_GaussianMixtureFunctor
 {
@@ -41,31 +54,116 @@ struct LM_GaussianMixtureFunctor
 
 	size_t m_peakCount;
 	const std::vector<double>& m_values;
+	double m_muMin, m_muMax;
 
-	LM_GaussianMixtureFunctor(size_t peakCount, const std::vector<double>& values) : m_peakCount(peakCount), m_values(values) {}
+	LM_GaussianMixtureFunctor(size_t peakCount, const std::vector<double>& values) : m_peakCount(peakCount), m_values(values)
+	{
+		m_muMin = 1.0;
+		m_muMax = static_cast<double>(m_values.size() - 1);
+	}
 
 	int inputs() const { return static_cast<int>(m_peakCount * 3); }
 	int values() const { return static_cast<int>(m_values.size()); }
 
 	void filterInputValues(double& mu, double& amp, double& sigma) const
 	{
-		if (mu < 1.0)
-		{
-			mu = exp(mu - 1.0);
-		}
-		else if (mu >= static_cast<double>(m_values.size() - 1))
-		{
-			mu = static_cast<double>(m_values.size() - 1) + exp(static_cast<double>(m_values.size() - 1) - mu);
-		}
+		//if (mu < m_muMin)
+		//{
+		//	mu = exp(mu - m_muMin);
+		//}
+		//else if (mu >= m_muMax)
+		//{
+		//	mu = m_muMax + exp(m_muMax - mu);
+		//}
 
-		//amp = std::max(amp, 0.0);
-		if (!isfinite(sigma))
+		////amp = std::max(amp, 0.0);
+		//if (!isfinite(sigma))
+		//{
+		//	sigma = FWFPeakDetectorInterface::Peak::MinSigma();
+		//}
+		//else if (sigma < 2 * FWFPeakDetectorInterface::Peak::MinSigma())
+		//{
+		//	sigma = FWFPeakDetectorInterface::Peak::MinSigma() + exp(sigma / (2 * FWFPeakDetectorInterface::Peak::MinSigma()) - 1.0);
+		//}
+	}
+
+	double mu_penalty(double mu) const
+	{
+		if (mu < m_muMin)
 		{
-			sigma = FWFPeakDetectorInterface::Peak::MinSigma();
+			return Penalty(m_muMin - mu);
 		}
-		else if (sigma < 2 * FWFPeakDetectorInterface::Peak::MinSigma())
+		else if (mu > m_muMax)
 		{
-			sigma = FWFPeakDetectorInterface::Peak::MinSigma() + exp(sigma / (2 * FWFPeakDetectorInterface::Peak::MinSigma()) - 1.0);
+			return Penalty(mu - m_muMax);
+		}
+		else
+		{
+			return  0.0;
+		}
+	}
+
+	double mu_penaltyDeriv(double mu) const
+	{
+		if (mu < m_muMin)
+		{
+			return PenaltyDeriv(mu - m_muMin);
+		}
+		else if (mu > m_muMax)
+		{
+			return PenaltyDeriv(mu - m_muMax);
+		}
+		else
+		{
+			return  0.0;
+		}
+	}
+
+	double amp_penalty(double amp) const
+	{
+		if (amp < 0)
+		{
+			return Penalty(-amp);
+		}
+		else
+		{
+			return  0.0;
+		}
+	}
+
+	double amp_penaltyDeriv(double amp) const
+	{
+		if (amp < 0)
+		{
+			return PenaltyDeriv(-amp);
+		}
+		else
+		{
+			return  0.0;
+		}
+	}
+
+	double sigma_penalty(double sigma) const
+	{
+		if (sigma < FWFPeakDetectorInterface::Peak::MinSigma())
+		{
+			return Penalty(FWFPeakDetectorInterface::Peak::MinSigma() - sigma);
+		}
+		else
+		{
+			return  0.0;
+		}
+	}
+
+	double sigma_penaltyDeriv(double sigma) const
+	{
+		if (sigma < FWFPeakDetectorInterface::Peak::MinSigma())
+		{
+			return PenaltyDeriv(FWFPeakDetectorInterface::Peak::MinSigma() - sigma);
+		}
+		else
+		{
+			return  0.0;
 		}
 	}
 
@@ -95,6 +193,10 @@ struct LM_GaussianMixtureFunctor
 				fjac(s, 3 * pi    ) = - amp * (xc / sigma2) * exp_u; //A * ((x - mu) / sigma^2) * exp(...)
 				fjac(s, 3 * pi + 1) = - exp_u; //exp(...)
 				fjac(s, 3 * pi + 2) = - (xc2 / (sigma * sigma2)) * amp * exp_u; //A * ((x - mu)^2 / sigma^3) * exp(...)
+
+				fjac(s, 3 * pi    ) -= mu_penaltyDeriv(mu);
+				fjac(s, 3 * pi + 1) -= amp_penaltyDeriv(amp);
+				fjac(s, 3 * pi + 2) -= sigma_penaltyDeriv(sigma);
 			}
 		}
 		return 0;
@@ -118,13 +220,14 @@ struct LM_GaussianMixtureFunctor
 			filterInputValues(mu, amp, sigma);
 
 			double sigma2_2 = 2 * sigma * sigma;
-			assert(sigma2_2 > 0);
+			//assert(sigma2_2 > 0);
 			
 			for (int s = 0; s < fvec.size(); ++s)
 			{
 				double x = s - mu;
 				double y = amp * exp(- x * x / sigma2_2);
 				fvec(s) += y;
+				fvec(s) += mu_penalty(mu) + amp_penalty(amp) + sigma_penalty(sigma);
 			}
 		}
 
@@ -187,8 +290,9 @@ bool FWFPeakDetectorNLSGauss::detectPeaks(	std::vector<Peak>& peakPositions,
 		return true;
 	}
 
-	for (const Peak& naivePeak : naivePeakPositions)
+	for (size_t pi = 0; pi < naivePeakPositions.size(); ++pi)
 	{
+		const Peak& naivePeak = naivePeakPositions[pi];
 		Peak peak = naivePeak;
 
 		//(approximate) position of the peak
@@ -202,7 +306,17 @@ bool FWFPeakDetectorNLSGauss::detectPeaks(	std::vector<Peak>& peakPositions,
 			//evaluate the standard deviation on a few samples
 			static const int testSize = 5;
 			int dMinus = (index >= testSize ? testSize : index);
+			if (pi != 0 && index - dMinus <= naivePeakPositions[pi - 1].x)
+			{
+				//too close from the previous peak
+				dMinus /= 2;
+			}
 			int dPlus = (index + testSize < valueCount - 1 ? testSize : valueCount - 1 - index);
+			if (pi + 1 != naivePeakPositions.size() && index + dPlus >= naivePeakPositions[pi + 1].x)
+			{
+				//too close from the next peak
+				dPlus /= 2;
+			}
 			int d = std::min(dMinus, dPlus);
 			if (d > 0)
 			{
@@ -212,10 +326,18 @@ bool FWFPeakDetectorNLSGauss::detectPeaks(	std::vector<Peak>& peakPositions,
 				//meanYd / Amp = exp(-(x-mu)^2 / (2*sigma^2))
 				double u = meanYd / peak.y;
 				//ln(meanYd / Amp) = -(x-mu)^2 / (2*sigma^2)
-				double ln_u = log(u);
-				//(2*sigma^2) = -(x-mu)^2 / ln(meanYd / Amp)
-				//sigma = sqrt(-(x-mu)^2 / (2 *ln(meanYd / Amp))
-				peak.sigma = sqrt(-d*d / (2*ln_u));
+				if (u > 0 && u < 1.0)
+				{
+					double ln_u = log(u);
+					//(2*sigma^2) = -(x-mu)^2 / ln(meanYd / Amp)
+					//sigma = sqrt(-(x-mu)^2 / (2 *ln(meanYd / Amp))
+					peak.sigma = sqrt(-d*d / (2 * ln_u));
+				}
+				else
+				{
+					peak.sigma = d / 3.0;
+				}
+				peak.sigma = std::max(peak.sigma, Peak::MinSigma());
 			}
 		}
 		
@@ -234,7 +356,7 @@ bool FWFPeakDetectorNLSGauss::detectPeaks(	std::vector<Peak>& peakPositions,
 		LM_GaussianMixtureFunctorDiff functorDiff(functor);
 		Eigen::LevenbergMarquardt<LM_GaussianMixtureFunctorDiff, double> lm(functorDiff);
 #endif
-		lm.parameters.maxfev = 2000;
+		lm.parameters.maxfev = 100;
 		lm.parameters.xtol = 1.0e-10;
 
 		Eigen::VectorXd x(peakPositions.size() * 3);
@@ -289,7 +411,7 @@ bool FWFPeakDetectorNLSGauss::GenerateSyntheticWaveform(const std::vector<Peak>&
 		}
 
 		double sigma2_2 = 2 * peak.sigma * peak.sigma;
-		assert(sigma2_2 > 0);
+		//assert(sigma2_2 > 0);
 
 		for (size_t s = 0; s < valueCount; ++s)
 		{

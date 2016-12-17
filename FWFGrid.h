@@ -26,6 +26,9 @@
 #include <vector>
 #include <algorithm>
 
+class ccPointCloud;
+class QWidget;
+
 //! Raster grid type
 struct FWFGrid
 {
@@ -77,6 +80,20 @@ struct FWFGrid
 		setValid(true);
 		return true;
 	}
+
+	//! Interpolation method
+	enum InterpolationMethod
+	{
+		LINEAR,
+		INV_SQUARE,
+		INV_EXP
+	};
+
+	//! Projects a cloud inside the grid
+	bool project(	ccPointCloud* cloud,
+					double radius,
+					InterpolationMethod interpMethod,
+					QWidget* progressDialogParent = 0);
 
 	double computeMaxVal() const
 	{
