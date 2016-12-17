@@ -45,41 +45,7 @@ struct FWFGrid
 	//! Initializes / resets the grid
 	bool init(	const Tuple3ui& size,
 				const CCVector3d& steps,
-				const CCVector3d& minCorner)
-	{
-		setValid(false);
-
-		m_size = size;
-		m_steps = steps;
-		m_minCorner = minCorner;
-
-		if (m_size.x == 0 || m_size.y == 0 || m_size.z == 0)
-		{
-			//invalid size
-			return false;
-		}
-
-		try
-		{
-			m_data.resize(m_size.z);
-
-			size_t sliceSize = m_size.x; sliceSize *= m_size.y;
-
-			for (Slice& slice : m_data)
-			{
-				slice.resize(sliceSize);
-			}
-		}
-		catch (const std::bad_alloc&)
-		{
-			//not enough memory
-			clear();
-			return false;
-		}
-
-		setValid(true);
-		return true;
-	}
+				const CCVector3d& minCorner);
 
 	//! Interpolation method
 	enum InterpolationMethod
@@ -95,55 +61,11 @@ struct FWFGrid
 					InterpolationMethod interpMethod,
 					QWidget* progressDialogParent = 0);
 
-	double computeMaxVal() const
-	{
-		double maxVal = 0;
-		for (const Slice& slice : m_data)
-		{
-			for (const Cell& cell : slice)
-			{
-				if (cell.weightSum > 0)
-				{
-					maxVal = std::max(cell.mean(), maxVal);
-				}
-			}
-		}
-		return maxVal;
-	}
+	//! Computes the max (mean) value
+	double computeMaxVal() const;
 	
-	bool computeRange(double& minVal, double& maxVal) const
-	{
-		minVal = maxVal = 0;
-		//count the number of valid cells
-		bool firstTest = true;
-		{
-			for (unsigned z = 0; z < m_size.z; ++z)
-			{
-				const FWFGrid::Slice& slice = getSlice(z);
-				for (const FWFGrid::Cell& cell : slice)
-				{
-					if (cell.weightSum != 0)
-					{
-						double val = cell.mean();
-						if (firstTest)
-						{
-							firstTest = false;
-							minVal = maxVal = val;
-						}
-						else
-						{
-							if (val < minVal)
-								minVal = val;
-							else if (val > maxVal)
-								maxVal = val;
-						}
-					}
-				}
-			}
-		}
-
-		return !firstTest;
-	}
+	//! Computes the range of (mean) values inside the grid
+	bool computeRange(double& minVal, double& maxVal) const;
 
 	//! Clears the grid
 	void clear()
@@ -191,25 +113,10 @@ struct FWFGrid
 	}
 
 	//! Counts the number of valid cells above a given value
-	unsigned countValidCells(double minVal/*=0*/) const
-	{
-		unsigned validCellCount = 0;
-		{
-			for (unsigned z = 0; z < size().z; ++z)
-			{
-				const FWFGrid::Slice& slice = getSlice(z);
-				for (const FWFGrid::Cell& cell : slice)
-				{
-					if (cell.weightSum != 0 && cell.mean() >= minVal)
-					{
-						++validCellCount;
-					}
-				}
-			}
-		}
+	unsigned countValidCells(double minVal/*=0*/) const;
 
-		return validCellCount;
-	}
+	//! Returns the values inside a column
+	bool getColumnValues(unsigned x, unsigned y, std::vector<double>& values, bool upsideDown = false) const;
 
 	//! Grid cell
 	struct Cell
