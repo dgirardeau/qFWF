@@ -171,6 +171,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 
 		bool error = false;
 #if defined(_OPENMP)
+		detectedPeaks.reserve(sliceSize * maxReturnCount); //we must prevent any reallocation during the parallel process!!!
 #pragma omp parallel for
 #endif
 		for (int xy = 0; xy < static_cast<int>(sliceSize); ++xy)
@@ -218,7 +219,10 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 
 				for (const FWFPeakDetectorInterface::Peak& peak : peaks)
 				{
-					detectedPeaks.push_back(PeakInfo(peak, xy));
+					if (peak.y >= minVal)
+					{
+						detectedPeaks.push_back(PeakInfo(peak, xy));
+					}
 				}
 			}
 		}

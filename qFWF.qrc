@@ -1,5 +1,9 @@
 <RCC>
   <qresource prefix="/CC/plugin/qFWF">
-    <file>icon.png</file>
+    <file>reprocess.png</file>
+    <file>wave.png</file>
+    <file>wave_analysis.png</file>
+    <file>wave_grid.png</file>
+    <file>wave2.png</file>
   </qresource>
 </RCC>

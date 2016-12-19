@@ -1,17 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>ComputeOrthoWFToCloudDialog</class>
- <widget class="QDialog" name="ComputeOrthoWFToCloudDialog">
+ <class>PeakDetectionDialog</class>
+ <widget class="QDialog" name="PeakDetectionDialog">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
     <width>280</width>
-    <height>280</height>
+    <height>290</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Conversion to FWF cloud</string>
+   <string>Peak detection</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="qFWF.qrc">
+    <normaloff>:/CC/plugin/qFWF/wave_analysis.png</normaloff>:/CC/plugin/qFWF/wave_analysis.png</iconset>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
@@ -149,12 +153,14 @@
    </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="qFWF.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>buttonBox</sender>
    <signal>accepted()</signal>
-   <receiver>ComputeOrthoWFToCloudDialog</receiver>
+   <receiver>PeakDetectionDialog</receiver>
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
@@ -170,7 +176,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
-   <receiver>ComputeOrthoWFToCloudDialog</receiver>
+   <receiver>PeakDetectionDialog</receiver>
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">

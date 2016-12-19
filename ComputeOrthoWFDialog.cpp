@@ -21,6 +21,7 @@
 #include "OrthoWFTools.h"
 #include "FWFPeakDetectorNaive.h"
 #include "FWFPeakDetectorNLSGauss.h"
+#include "PeakDetectionDialog.h"
 
 //qCC
 #include <ccBoundingBoxEditorDlg.h>
@@ -34,20 +35,6 @@
 //Qt
 #include <QSettings>
 #include <QMainWindow>
-
-#include <ui_ComputeOrthoWFToCloudDialog.h>
-
-//dialog for conversion to a FWF cloud
-class ComputeOrthoWFToCloudDialog : public QDialog, public Ui::ComputeOrthoWFToCloudDialog
-{
-public:
-	ComputeOrthoWFToCloudDialog(QWidget* parent = 0)
-		: QDialog(parent)
-		, Ui::ComputeOrthoWFToCloudDialog()
-	{
-		setupUi(this);
-	}
-};
 
 ComputeOrthoWFDialog::ComputeOrthoWFDialog(ccMainAppInterface* app, QWidget* parent/*=0*/)
 	: QDialog(parent)
@@ -379,31 +366,31 @@ void ComputeOrthoWFDialog::exportToFWFCloud()
 	static int s_bpsMode = 1;
 	static int s_numberOfSamples = 64;
 
-	ComputeOrthoWFToCloudDialog owf2cloudDlg(this);
+	PeakDetectionDialog pdDlg(this);
 
 	//load parameters
-	owf2cloudDlg.minAmplitudeDoubleSpinBox->setRange(rangeMin, rangeMax);
-	owf2cloudDlg.minAmplitudeDoubleSpinBox->setToolTip(QString("Range: [%1 ; %2]").arg(rangeMin).arg(rangeMax));
-	owf2cloudDlg.minAmplitudeDoubleSpinBox->setValue(s_minPeakVal);
-	owf2cloudDlg.echoDetectorComboBox->addItem("Naive");
-	owf2cloudDlg.echoDetectorComboBox->addItem("NLS_Gauss");
-	owf2cloudDlg.echoDetectorComboBox->setCurrentIndex(s_peakDetectorIndex);
-	owf2cloudDlg.maxReturnCountSpinBox->setValue(s_maxReturnCount);
-	owf2cloudDlg.bpsComboBox->setCurrentIndex(s_bpsMode);
-	owf2cloudDlg.sampleCountSpinBox->setValue(s_numberOfSamples);
+	pdDlg.minAmplitudeDoubleSpinBox->setRange(rangeMin, rangeMax);
+	pdDlg.minAmplitudeDoubleSpinBox->setToolTip(QString("Range: [%1 ; %2]").arg(rangeMin).arg(rangeMax));
+	pdDlg.minAmplitudeDoubleSpinBox->setValue(s_minPeakVal);
+	pdDlg.echoDetectorComboBox->addItem("Naive");
+	pdDlg.echoDetectorComboBox->addItem("NLS_Gauss");
+	pdDlg.echoDetectorComboBox->setCurrentIndex(s_peakDetectorIndex);
+	pdDlg.maxReturnCountSpinBox->setValue(s_maxReturnCount);
+	pdDlg.bpsComboBox->setCurrentIndex(s_bpsMode);
+	pdDlg.sampleCountSpinBox->setValue(s_numberOfSamples);
 	
-	if (!owf2cloudDlg.exec())
+	if (!pdDlg.exec())
 	{
 		//process cancelled by the user
 		return;
 	}
 
 	//save parameters
-	s_minPeakVal = owf2cloudDlg.minAmplitudeDoubleSpinBox->value();
-	s_peakDetectorIndex = owf2cloudDlg.echoDetectorComboBox->currentIndex();
-	s_maxReturnCount = owf2cloudDlg.maxReturnCountSpinBox->value();
-	s_bpsMode = owf2cloudDlg.bpsComboBox->currentIndex();
-	s_numberOfSamples = owf2cloudDlg.sampleCountSpinBox->value();
+	s_minPeakVal = pdDlg.minAmplitudeDoubleSpinBox->value();
+	s_peakDetectorIndex = pdDlg.echoDetectorComboBox->currentIndex();
+	s_maxReturnCount = pdDlg.maxReturnCountSpinBox->value();
+	s_bpsMode = pdDlg.bpsComboBox->currentIndex();
+	s_numberOfSamples = pdDlg.sampleCountSpinBox->value();
 
 	//peak detector
 	FWFPeakDetectorInterface* detector = 0;
@@ -459,11 +446,15 @@ void ComputeOrthoWFDialog::exportToFWFCloud()
 		{
 			WaveformDescriptor& d = m_cloud->fwfDescriptors()[w.descriptorID()];
 
-			double sampleStep = w.beamDir().normd();
+			double sampleStep = w.beamDir().normd() * d.samplingRate_ps;
 			double gridStep = m_grid->steps().z;
 
-			//descriptor.samplingRate_ps = static_cast<uint32_t>(gridStep * d.samplingRate_ps / sampleStep);
-			descriptor.samplingRate_ps = 1000;
+			descriptor.samplingRate_ps = static_cast<uint32_t>(gridStep * d.samplingRate_ps / sampleStep);
+			if (descriptor.samplingRate_ps > 100000 && m_app)
+			{
+				m_app->dispToConsole("[exportToFWFCloud] High sampling rate detected. Accuracy may be jeopardized (the vertical grid step may be too high).", ccMainAppInterface::WRN_CONSOLE_MESSAGE);
+			}
+			//descriptor.samplingRate_ps = 1000;
 			break;
 		}
 	}

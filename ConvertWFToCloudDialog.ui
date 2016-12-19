@@ -7,11 +7,15 @@
     <x>0</x>
     <y>0</y>
     <width>300</width>
-    <height>110</height>
+    <height>115</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Waveform to cloud</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="qFWF.qrc">
+    <normaloff>:/CC/plugin/qFWF/wave2.png</normaloff>:/CC/plugin/qFWF/wave2.png</iconset>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
@@ -60,7 +64,9 @@
    </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="qFWF.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>buttonBox</sender>

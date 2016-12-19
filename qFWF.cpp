@@ -77,7 +77,7 @@ void qFWF::getActions(QActionGroup& group)
 	{
 		m_convertWFToCloudAction = new QAction("Waveform to cloud", this);
 		m_convertWFToCloudAction->setToolTip("Convert waveform to cloud");
-		m_convertWFToCloudAction->setIcon(QIcon(QString::fromUtf8(":/CC/plugin/qFWF/icon.png")));
+		m_convertWFToCloudAction->setIcon(QIcon(QString::fromUtf8(":/CC/plugin/qFWF/wave2.png")));
 		connect(m_convertWFToCloudAction, SIGNAL(triggered()), this, SLOT(doConvertWFToCloudAction()));
 	}
 	group.addAction(m_convertWFToCloudAction);
@@ -86,7 +86,7 @@ void qFWF::getActions(QActionGroup& group)
 	{
 		m_computeOrthoWF = new QAction("Compute ortho-waveform", this);
 		m_computeOrthoWF->setToolTip("Projects the waveforms in a grid-like structure to generate ortho-waveforms");
-		m_computeOrthoWF->setIcon(QIcon(QString::fromUtf8(":/CC/plugin/qFWF/icon.png")));
+		m_computeOrthoWF->setIcon(QIcon(QString::fromUtf8(":/CC/plugin/qFWF/wave_grid.png")));
 		connect(m_computeOrthoWF, SIGNAL(triggered()), this, SLOT(doComputeOrthoWF()));
 	}
 	group.addAction(m_computeOrthoWF);
@@ -95,7 +95,7 @@ void qFWF::getActions(QActionGroup& group)
 	{
 		m_testPeakExtraction = new QAction("Test peak extraction", this);
 		m_testPeakExtraction->setToolTip("Extracts peaks from a single waveform");
-		m_testPeakExtraction->setIcon(QIcon(QString::fromUtf8(":/CC/plugin/qFWF/icon.png")));
+		m_testPeakExtraction->setIcon(QIcon(QString::fromUtf8(":/CC/plugin/qFWF/wave.png")));
 		connect(m_testPeakExtraction, SIGNAL(triggered()), this, SLOT(doTestPeakExtraction()));
 	}
 	group.addAction(m_testPeakExtraction);
@@ -456,5 +456,5 @@ void qFWF::doTestPeakExtraction()
 
 QIcon qFWF::getIcon() const
 {
-	return QIcon(QString::fromUtf8(":/CC/plugin/qFWF/iconClassify.png"));
+	return QIcon(QString::fromUtf8(":/CC/plugin/qFWF/wave.png"));
 }

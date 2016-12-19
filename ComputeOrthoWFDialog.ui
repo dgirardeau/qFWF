@@ -6,12 +6,16 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>350</width>
+    <width>363</width>
     <height>385</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Compute ortho-waveforms</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="qFWF.qrc">
+    <normaloff>:/CC/plugin/qFWF/wave_grid.png</normaloff>:/CC/plugin/qFWF/wave_grid.png</iconset>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_2">
    <item>
@@ -276,7 +280,9 @@
    </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="qFWF.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>buttonBox</sender>
