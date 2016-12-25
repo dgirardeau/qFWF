@@ -558,7 +558,7 @@ void qFWF::registerCommands(ccCommandLineInterface* cmd)
 	}
 
 	cmd->registerCommand(ccCommandLineInterface::Command::Shared(new CommandExtractFWFPeaks));
-	
+	cmd->registerCommand(ccCommandLineInterface::Command::Shared(new CommandComputeOrthoFWF));
 }
 
 QIcon qFWF::getIcon() const

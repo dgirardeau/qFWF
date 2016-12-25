@@ -23,14 +23,23 @@
 
 //qCC_db
 #include <ccWaveform.h>
+#include <ccBBox.h>
 
+class QWidget;
 class ccPointCloud;
+class ccProgressDialog;
 class ccMainAppInterface;
 class FWFPeakDetectorInterface;
 
 class OrthoWFTools
 {
 public:
+
+	//! Computes the FWF points bounding-box
+	static ccBBox ComputeFWFBox(ccPointCloud* cloud, ccProgressDialog* pDlg = 0);
+
+	//! Computes the grid size
+	static Tuple3ui ComputeGridSize(const ccBBox& box, double hGridStep, double vGridStep);
 
 	//! Converts a grid to a point cloud
 	static ccPointCloud* ConvertGridToGridCloud(const FWFGrid& grid,
@@ -43,6 +52,7 @@ public:
 												int maxReturnCount,
 												const WaveformDescriptor& descriptor,
 												double minVal = 0,
+												QWidget* parentWidget = 0,
 												ccMainAppInterface* app = 0);
 
 };

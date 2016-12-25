@@ -121,41 +121,12 @@ bool ComputeOrthoWFDialog::setCloud(ccPointCloud* cloud, ccProgressDialog* pDlg/
 
 	//determine the overall FWF bounding box
 	{
-		//update the progress dialog
-		CCLib::NormalizedProgress nProgress(pDlg, static_cast<unsigned>(cloud->size()));
-		if (pDlg)
+		ccBBox fwfBBox = OrthoWFTools::ComputeFWFBox(m_cloud, pDlg);
+		if (!fwfBBox.isValid())
 		{
-			pDlg->setWindowTitle("FWF");
-			pDlg->setLabelText("Determine FWF bounding-box...");
-			pDlg->show();
-			QCoreApplication::processEvents();
-		}
-
-		const ccPointCloud::FWFDescriptorSet& descriptors = cloud->fwfDescriptors();
-
-		ccBBox fwfBBox;
-		for (unsigned pi = 0; pi < cloud->size(); ++pi)
-		{
-			if (!nProgress.oneStep())
-			{
-				//process cancelled by the user
-				m_cloud = 0;
-				return false;
-			}
-
-			const ccWaveformProxy& w = cloud->waveformProxy(pi);
-			if (!w.isValid())
-			{
-				//no valid descriptor
-				continue;
-			}
-
-			const CCVector3* P = cloud->getPoint(pi);
-			//we'll use the first and last points to increase the bounding-box
-			CCVector3 Q0 = w.getSamplePos(0, *P);
-			CCVector3 Q1 = w.getSamplePos(w.numberOfSamples() - 1, *P);
-			fwfBBox.add(Q0);
-			fwfBBox.add(Q1);
+			//process cancelled by the user
+			m_cloud = 0;
+			return false;
 		}
 
 		m_bbEditorDlg->setBaseBBox(fwfBBox, false);
@@ -186,25 +157,14 @@ bool ComputeOrthoWFDialog::computeGridSize(Tuple3ui& size) const
 		assert(false);
 		return false;
 	}
-
 	const ccBBox& box = m_bbEditorDlg->getBox();
 
 	double hGridStep = hGridStepDoubleSpinBox->value();
 	double vGridStep = vGridStepDoubleSpinBox->value();
-	assert(hGridStep != 0 && vGridStep != 0);
 
-	CCVector3d boxDiag = CCVector3d::fromArray(box.maxCorner().u) - CCVector3d::fromArray(box.minCorner().u);
-	if (boxDiag.x <= 0 || boxDiag.y <= 0 || boxDiag.z <= 0)
-	{
-		return false;
-	}
+	size = OrthoWFTools::ComputeGridSize(box, hGridStep, vGridStep);
 
-	//DGM: we now use the 'PixelIsArea' convention (the height value is computed at the grid cell center)
-	size.x = 1 + static_cast<unsigned>(boxDiag.x / hGridStep + 0.5);
-	size.y = 1 + static_cast<unsigned>(boxDiag.y / hGridStep + 0.5);
-	size.z = 1 + static_cast<unsigned>(boxDiag.z / vGridStep + 0.5);
-
-	return true;
+	return (size.x + size.y + size.z) != 0;
 }
 
 void ComputeOrthoWFDialog::updateGridSize()
@@ -464,6 +424,7 @@ void ComputeOrthoWFDialog::exportToFWFCloud()
 																s_maxReturnCount,
 																descriptor,
 																s_minPeakVal,
+																m_app ? m_app->getMainWindow() : 0,
 																m_app);
 
 	delete detector;

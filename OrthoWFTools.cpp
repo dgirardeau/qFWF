@@ -32,6 +32,31 @@
 #include <QCoreApplication>
 #include <QMainWindow>
 
+Tuple3ui OrthoWFTools::ComputeGridSize(const ccBBox& box, double hGridStep, double vGridStep)
+{
+	if (!box.isValid() || hGridStep == 0 || vGridStep == 0)
+	{
+		assert(false);
+		//invalid box
+		return Tuple3ui(0, 0, 0);
+	}
+
+	CCVector3d boxDiag = CCVector3d::fromArray(box.maxCorner().u) - CCVector3d::fromArray(box.minCorner().u);
+	if (boxDiag.x <= 0 || boxDiag.y <= 0 || boxDiag.z <= 0)
+	{
+		//invalid box
+		return Tuple3ui(0, 0, 0);
+	}
+
+	//DGM: we now use the 'PixelIsArea' convention (the height value is computed at the grid cell center)
+	Tuple3ui size;
+	size.x = 1 + static_cast<unsigned>(boxDiag.x / hGridStep + 0.5);
+	size.y = 1 + static_cast<unsigned>(boxDiag.y / hGridStep + 0.5);
+	size.z = 1 + static_cast<unsigned>(boxDiag.z / vGridStep + 0.5);
+
+	return size;
+}
+
 ccPointCloud* OrthoWFTools::ConvertGridToGridCloud(	const FWFGrid& grid,
 													double minVal/*=0*/,
 													ccMainAppInterface* app/*=0*/)
@@ -131,6 +156,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 													int maxReturnCount,
 													const WaveformDescriptor& descriptor,
 													double minVal/*=0*/,
+													QWidget* parentWidget/*=0*/,
 													ccMainAppInterface* app/*=0*/)
 {
 	if (!detector)
@@ -163,14 +189,18 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 		unsigned sliceSize = grid.size().x * grid.size().y;
 
 		//progress dialog
-		ccProgressDialog pDlg(app ? app->getMainWindow() : 0);
-		pDlg.setWindowTitle("FWF");
-		pDlg.setAutoClose(false);
-		pDlg.setLabelText("Detecting the peaks...");
-		pDlg.setRange(0, 100);
-		pDlg.show();
-		QCoreApplication::processEvents();
-		//CCLib::NormalizedProgress nProgress2(&pDlg, static_cast<unsigned>(sliceSize)); //DGM: can't use it with OpenMP
+		QScopedPointer<ccProgressDialog> pDlg(0);
+		if (parentWidget)
+		{
+			pDlg.reset(new ccProgressDialog(false, parentWidget));
+			pDlg->setWindowTitle("FWF");
+			pDlg->setAutoClose(false);
+			pDlg->setLabelText("Detecting the peaks...");
+			pDlg->setRange(0, 100);
+			pDlg->show();
+			QCoreApplication::processEvents();
+		}
+		//CCLib::NormalizedProgress nProgress2(pDlg, static_cast<unsigned>(sliceSize)); //DGM: can't use it with OpenMP
 		int progressCounter = 0;
 		int progress = 0;
 
@@ -189,19 +219,22 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 				continue;
 			}
 
-			int currentProgress = static_cast<int>((++progressCounter) * 100.0f / sliceSize);
-			if (currentProgress > progress)
+			if (pDlg)
 			{
-				if (pDlg.wasCanceled())
+				int currentProgress = static_cast<int>((++progressCounter) * 100.0f / sliceSize);
+				if (currentProgress > progress)
 				{
-					error = true;
-					continue;
-				}
-				else
-				{
-					progress = currentProgress;
-					QMetaObject::invokeMethod(&pDlg, "setValue", Qt::QueuedConnection, Q_ARG(int, currentProgress));
-					QCoreApplication::processEvents();
+					if (pDlg->wasCanceled())
+					{
+						error = true;
+						continue;
+					}
+					else
+					{
+						progress = currentProgress;
+						QMetaObject::invokeMethod(pDlg.data(), "setValue", Qt::QueuedConnection, Q_ARG(int, currentProgress));
+						QCoreApplication::processEvents();
+					}
 				}
 			}
 
@@ -286,11 +319,13 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 		//FWF data block
 		QScopedPointer<ccPointCloud::FWFDataContainer> fwfData(new ccPointCloud::FWFDataContainer);
 
-		pDlg.setLabelText("Creating the waveforms...");
-		pDlg.show();
-		QCoreApplication::processEvents();
-		CCLib::NormalizedProgress nProgress(&pDlg, static_cast<unsigned>(detectedPeaks.size()));
-
+		if (pDlg)
+		{
+			pDlg->setLabelText("Creating the waveforms...");
+			pDlg->show();
+			QCoreApplication::processEvents();
+		}
+		CCLib::NormalizedProgress nProgress(pDlg.data(), static_cast<unsigned>(detectedPeaks.size()));
 		CCVector3d columnOrigin;
 		int previousWaveStart = -1;
 		int previousWaveStop = -1;
@@ -300,7 +335,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 
 		for (size_t i = 0; i < detectedPeaks.size(); ++i)
 		{
-			if (!nProgress.oneStep())
+			if (pDlg && !nProgress.oneStep())
 			{
 				//process cancelled by the user
 				return 0;
@@ -485,4 +520,49 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 	}
 
 	return cloud.take();
+}
+
+ccBBox OrthoWFTools::ComputeFWFBox(ccPointCloud* cloud, ccProgressDialog* pDlg/*=0*/)
+{
+	if (!cloud || !cloud->hasFWF())
+	{
+		assert(false);
+		return ccBBox();
+	}
+
+	//update the progress dialog
+	CCLib::NormalizedProgress nProgress(pDlg, static_cast<unsigned>(cloud->size()));
+	if (pDlg)
+	{
+		pDlg->setWindowTitle("FWF");
+		pDlg->setLabelText("Determine FWF bounding-box...");
+		pDlg->show();
+		QCoreApplication::processEvents();
+	}
+
+	ccBBox fwfBBox;
+	for (unsigned pi = 0; pi < cloud->size(); ++pi)
+	{
+		if (pDlg && !nProgress.oneStep())
+		{
+			//process cancelled by the user
+			return ccBBox();
+		}
+
+		const ccWaveformProxy& w = cloud->waveformProxy(pi);
+		if (!w.isValid())
+		{
+			//no valid descriptor
+			continue;
+		}
+
+		const CCVector3* P = cloud->getPoint(pi);
+		//we'll use the first and last points to increase the bounding-box
+		CCVector3 Q0 = w.getSamplePos(0, *P);
+		CCVector3 Q1 = w.getSamplePos(w.numberOfSamples() - 1, *P);
+		fwfBBox.add(Q0);
+		fwfBBox.add(Q1);
+	}
+
+	return fwfBBox;
 }
