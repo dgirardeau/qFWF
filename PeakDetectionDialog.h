@@ -34,6 +34,9 @@ public:
 	{
 		setupUi(this);
 	}
+
+	void loadSettings();
+	void saveSettings();
 };
 
 #endif //PEAK_DETECTION_DIALOG_HEADER

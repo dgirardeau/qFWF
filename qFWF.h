@@ -39,6 +39,7 @@ public:
 	virtual QString getName() const { return "FWF"; }
 	virtual QString getDescription() const { return "LAS Full-Waveform (CNRS/OSUR)"; }
 	virtual QIcon getIcon() const;
+	virtual void registerCommands(ccCommandLineInterface* cmd) override;
 
 	//inherited from ccStdPluginInterface
 	void onNewSelection(const ccHObject::Container& selectedEntities);
@@ -48,6 +49,7 @@ protected slots:
 
 	void doConvertWFToCloudAction();
 	void doComputeOrthoWF();
+	void doExtractNewPeaks();
 	void doTestPeakExtraction();
 
 protected: //methods
@@ -60,9 +62,11 @@ protected: //members
 	//! Convert waveform to cloud action
 	QAction* m_convertWFToCloudAction;
 	//! Compute ortho waveform
-	QAction* m_computeOrthoWF;
+	QAction* m_computeOrthoWFAction;
+	//! Extracts peaks from a pointcloud with existing FWF data
+	QAction* m_extractNewPeaksAction;
 	//! Test of the peak extraction module
-	QAction* m_testPeakExtraction;
+	QAction* m_testPeakExtractionAction;
 
 	//! Currently selected entities
 	ccHObject::Container m_selectedEntities;

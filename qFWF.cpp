@@ -20,6 +20,11 @@
 //local
 #include "ConvertWFToCloudDialog.h"
 #include "ComputeOrthoWFDialog.h"
+#include "PeakExtractionTools.h"
+#include "PeakDetectionDialog.h"
+#include "FWFPeakDetectorNaive.h"
+#include "FWFPeakDetectorNLSGauss.h"
+#include "qFWFCommands.h"
 
 //qCC_db
 #include <ccPointCloud.h>
@@ -35,16 +40,14 @@
 #include <QApplication>
 #include <QMessageBox>
 #include <QMainWindow>
-
-//for peak extraction test
 #include <QInputDialog>
-#include "FWFPeakDetectorNLSGauss.h"
 
 qFWF::qFWF(QObject* parent/*=0*/)
 	: QObject(parent)
 	, m_convertWFToCloudAction(0)
-	, m_computeOrthoWF(0)
-	, m_testPeakExtraction(0)
+	, m_computeOrthoWFAction(0)
+	, m_extractNewPeaksAction(0)
+	, m_testPeakExtractionAction(0)
 {
 }
 
@@ -56,16 +59,22 @@ void qFWF::onNewSelection(const ccHObject::Container& selectedEntities)
 		m_convertWFToCloudAction->setEnabled(selectedEntities.size() == 1 && selectedEntities[0]->isA(CC_TYPES::POINT_CLOUD) && static_cast<ccPointCloud*>(selectedEntities[0])->hasFWF());
 	}
 
-	if (m_computeOrthoWF)
+	if (m_computeOrthoWFAction)
 	{
 		//convert waveform to cloud: only one point cloud with waveform
-		m_computeOrthoWF->setEnabled(selectedEntities.size() == 1 && selectedEntities[0]->isA(CC_TYPES::POINT_CLOUD) && static_cast<ccPointCloud*>(selectedEntities[0])->hasFWF());
+		m_computeOrthoWFAction->setEnabled(selectedEntities.size() == 1 && selectedEntities[0]->isA(CC_TYPES::POINT_CLOUD) && static_cast<ccPointCloud*>(selectedEntities[0])->hasFWF());
 	}
 
-	if (m_testPeakExtraction)
+	if (m_extractNewPeaksAction)
+	{
+		//re-detect peaks in cloud: only one point cloud with waveform
+		m_extractNewPeaksAction->setEnabled(selectedEntities.size() == 1 && selectedEntities[0]->isA(CC_TYPES::POINT_CLOUD) && static_cast<ccPointCloud*>(selectedEntities[0])->hasFWF());
+	}
+
+	if (m_testPeakExtractionAction)
 	{
 		//we need one point cloud with waveform
-		m_testPeakExtraction->setEnabled(selectedEntities.size() == 1 && selectedEntities[0]->isA(CC_TYPES::POINT_CLOUD) && static_cast<ccPointCloud*>(selectedEntities[0])->hasFWF());
+		m_testPeakExtractionAction->setEnabled(selectedEntities.size() == 1 && selectedEntities[0]->isA(CC_TYPES::POINT_CLOUD) && static_cast<ccPointCloud*>(selectedEntities[0])->hasFWF());
 	}
 
 	m_selectedEntities = selectedEntities;
@@ -82,23 +91,32 @@ void qFWF::getActions(QActionGroup& group)
 	}
 	group.addAction(m_convertWFToCloudAction);
 
-	if (!m_computeOrthoWF)
+	if (!m_computeOrthoWFAction)
 	{
-		m_computeOrthoWF = new QAction("Compute ortho-waveform", this);
-		m_computeOrthoWF->setToolTip("Projects the waveforms in a grid-like structure to generate ortho-waveforms");
-		m_computeOrthoWF->setIcon(QIcon(QString::fromUtf8(":/CC/plugin/qFWF/wave_grid.png")));
-		connect(m_computeOrthoWF, SIGNAL(triggered()), this, SLOT(doComputeOrthoWF()));
+		m_computeOrthoWFAction = new QAction("Compute ortho-waveform", this);
+		m_computeOrthoWFAction->setToolTip("Projects the waveforms in a grid-like structure to generate ortho-waveforms");
+		m_computeOrthoWFAction->setIcon(QIcon(QString::fromUtf8(":/CC/plugin/qFWF/wave_grid.png")));
+		connect(m_computeOrthoWFAction, SIGNAL(triggered()), this, SLOT(doComputeOrthoWF()));
 	}
-	group.addAction(m_computeOrthoWF);
+	group.addAction(m_computeOrthoWFAction);
 
-	if (!m_testPeakExtraction)
+	if (!m_extractNewPeaksAction)
 	{
-		m_testPeakExtraction = new QAction("Test peak extraction", this);
-		m_testPeakExtraction->setToolTip("Extracts peaks from a single waveform");
-		m_testPeakExtraction->setIcon(QIcon(QString::fromUtf8(":/CC/plugin/qFWF/wave.png")));
-		connect(m_testPeakExtraction, SIGNAL(triggered()), this, SLOT(doTestPeakExtraction()));
+		m_extractNewPeaksAction = new QAction("Extract new peaks", this);
+		m_extractNewPeaksAction->setToolTip("Extract new peaks from existing waveforms");
+		m_extractNewPeaksAction->setIcon(QIcon(QString::fromUtf8(":/CC/plugin/qFWF/reprocess.png")));
+		connect(m_extractNewPeaksAction, SIGNAL(triggered()), this, SLOT(doExtractNewPeaks()));
 	}
-	group.addAction(m_testPeakExtraction);
+	group.addAction(m_extractNewPeaksAction);
+
+	if (!m_testPeakExtractionAction)
+	{
+		m_testPeakExtractionAction = new QAction("Test peak extraction", this);
+		m_testPeakExtractionAction->setToolTip("Extracts peaks from a single waveform");
+		m_testPeakExtractionAction->setIcon(QIcon(QString::fromUtf8(":/CC/plugin/qFWF/wave.png")));
+		connect(m_testPeakExtractionAction, SIGNAL(triggered()), this, SLOT(doTestPeakExtraction()));
+	}
+	group.addAction(m_testPeakExtractionAction);
 }
 
 ccPointCloud* qFWF::getCloudWithFWF()
@@ -327,6 +345,83 @@ void qFWF::doComputeOrthoWF()
 	}
 }
 
+void qFWF::doExtractNewPeaks()
+{
+	ccPointCloud* cloud = getCloudWithFWF();
+	if (!cloud)
+	{
+		return;
+	}
+	assert(m_app && cloud->hasFWF()); //see getCloudWithFWF
+
+	double rangeMin = 0, rangeMax = 0;
+	if (!cloud->computeFWFAmplitude(rangeMin, rangeMax))
+	{
+		if (m_app)
+			m_app->dispToConsole("Invalid FWF data?!", ccMainAppInterface::ERR_CONSOLE_MESSAGE);
+		return;
+	}
+
+	//mean peak value
+	static double s_minPeakVal = rangeMax + 1.0;
+	if (s_minPeakVal > rangeMax)
+	{
+		s_minPeakVal = rangeMin + (rangeMax - rangeMin) / 5;
+	}
+	static int s_peakDetectorIndex = 1;
+	static int s_maxReturnCount = 2;
+
+	PeakDetectionDialog pdDlg(m_app ? m_app->getMainWindow() : 0);
+
+	//load parameters
+	pdDlg.minAmplitudeDoubleSpinBox->setRange(rangeMin, rangeMax);
+	pdDlg.minAmplitudeDoubleSpinBox->setToolTip(QString("Range: [%1 ; %2]").arg(rangeMin).arg(rangeMax));
+	pdDlg.minAmplitudeDoubleSpinBox->setValue(s_minPeakVal);
+	pdDlg.echoDetectorComboBox->addItem("Naive");
+	pdDlg.echoDetectorComboBox->addItem("NLS_Gauss");
+	pdDlg.echoDetectorComboBox->setCurrentIndex(s_peakDetectorIndex);
+	pdDlg.maxReturnCountSpinBox->setValue(s_maxReturnCount);
+	pdDlg.descriptorsGroupBox->setVisible(false);
+
+	if (!pdDlg.exec())
+	{
+		//process cancelled by the user
+		return;
+	}
+
+	//save parameters
+	s_minPeakVal = pdDlg.minAmplitudeDoubleSpinBox->value();
+	s_peakDetectorIndex = pdDlg.echoDetectorComboBox->currentIndex();
+	s_maxReturnCount = pdDlg.maxReturnCountSpinBox->value();
+	
+	//peak detector
+	FWFPeakDetectorInterface* detector = 0;
+	switch (s_peakDetectorIndex)
+	{
+	case 0:
+		detector = new FWFPeakDetectorNaive;
+		break;
+	case 1:
+		detector = new FWFPeakDetectorNLSGauss;
+		break;
+	default:
+		assert(false);
+		if (m_app)
+			m_app->dispToConsole("Internal error: invalid peak detector", ccMainAppInterface::ERR_CONSOLE_MESSAGE);
+		return;
+	}
+	
+	ccPointCloud* outputCloud = PeakExtractionTools::ExtractNewPeaks(cloud, detector, s_maxReturnCount, s_minPeakVal, m_app);
+	if (outputCloud)
+	{
+		if (cloud->getParent())
+		{
+			cloud->getParent()->addChild(outputCloud);
+		}
+		m_app->addToDB(outputCloud);
+	}
+}
+
 void qFWF::doTestPeakExtraction()
 {
 	ccPointCloud* cloud = getCloudWithFWF();
@@ -452,6 +547,18 @@ void qFWF::doTestPeakExtraction()
 	{
 		m_app->dispToConsole("Not enough memory to extract or save the peaks", ccMainAppInterface::WRN_CONSOLE_MESSAGE);
 	}
+}
+
+void qFWF::registerCommands(ccCommandLineInterface* cmd)
+{
+	if (!cmd)
+	{
+		assert(false);
+		return;
+	}
+
+	cmd->registerCommand(ccCommandLineInterface::Command::Shared(new CommandExtractFWFPeaks));
+	
 }
 
 QIcon qFWF::getIcon() const

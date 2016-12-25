@@ -110,13 +110,20 @@ ccPointCloud* OrthoWFTools::ConvertGridToGridCloud(	const FWFGrid& grid,
 
 struct PeakInfo
 {
-	PeakInfo(const FWFPeakDetectorInterface::Peak& p, int pos)
+	PeakInfo()
+		: xy(-1)
+		, returnNumber(0)
+	{}
+	
+	PeakInfo(const FWFPeakDetectorInterface::Peak& p, int pos, uint8_t rn)
 		: peak(p)
 		, xy(pos)
+		, returnNumber(rn)
 	{}
 
 	FWFPeakDetectorInterface::Peak peak;
 	int xy;
+	uint8_t returnNumber;
 };
 
 ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
@@ -168,10 +175,11 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 		int progress = 0;
 
 		std::vector<PeakInfo> detectedPeaks;
+		QAtomicInt peakCount(0);
 
 		bool error = false;
 #if defined(_OPENMP)
-		detectedPeaks.reserve(sliceSize * maxReturnCount); //we must prevent any reallocation during the parallel process!!!
+		detectedPeaks.resize(sliceSize * maxReturnCount); //we must prevent any reallocation during the parallel process!!!
 #pragma omp parallel for
 #endif
 		for (int xy = 0; xy < static_cast<int>(sliceSize); ++xy)
@@ -217,11 +225,12 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 							[](const FWFPeakDetectorInterface::Peak& a, const FWFPeakDetectorInterface::Peak& b) -> bool { return a.x < b.x; }
 				);
 
+				uint8_t returnNumber = 1;
 				for (const FWFPeakDetectorInterface::Peak& peak : peaks)
 				{
 					if (peak.y >= minVal)
 					{
-						detectedPeaks.push_back(PeakInfo(peak, xy));
+						detectedPeaks[peakCount++] = PeakInfo(peak, xy, returnNumber++);
 					}
 				}
 			}
@@ -234,12 +243,13 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 			return 0;
 		}
 
-		if (detectedPeaks.empty())
+		if (peakCount == 0)
 		{
 			if (app)
 				app->dispToConsole("No peak detected", ccMainAppInterface::ERR_CONSOLE_MESSAGE);
 			return 0;
 		}
+		detectedPeaks.resize(peakCount);
 		
 		//reserve memory for the points
 		cloud.reset(new ccPointCloud("Grid2FWF"));
@@ -429,6 +439,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 				w.setBeamDir(CCVector3f(0, 0, grid.steps().z / descriptor.samplingRate_ps));
 				assert(peak.x >= static_cast<float>(previousWaveStart));
 				w.setEchoTime_ps(static_cast<uint32_t>((peak.x - previousWaveStart) * descriptor.samplingRate_ps));
+				w.setReturnIndex(peakInfo.returnNumber);
 #ifdef _DEBUG
 				CCVector3 P0 = w.getSamplePos(0, PP, descriptor);
 				CCVector3d Q0 = columnOrigin;
