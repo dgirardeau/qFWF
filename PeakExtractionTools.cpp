@@ -28,6 +28,9 @@
 #include <ccScalarField.h>
 #include <ccProgressDialog.h>
 
+//qCC_io
+#include <LASFields.h>
+
 //Qt
 #include <QCoreApplication>
 #include <QMainWindow>
@@ -37,13 +40,13 @@ struct PeakInfo
 {
 	PeakInfo()
 		: pointIndex(0)
-		, returnNumber(0)
+		, returnNumber(1)
 	{}
 	
-	PeakInfo(const FWFPeakDetectorInterface::Peak& p, unsigned index, uint8_t returnNumber)
+	PeakInfo(const FWFPeakDetectorInterface::Peak& p, unsigned index, uint8_t rn)
 		: peak(p)
 		, pointIndex(index)
-		, returnNumber(0)
+		, returnNumber(rn)
 	{}
 
 	FWFPeakDetectorInterface::Peak peak;
@@ -201,10 +204,16 @@ ccPointCloud* PeakExtractionTools::ExtractNewPeaks(	const ccPointCloud* inputClo
 		detectedPeaks.resize(peakCount);
 
 		outputCloud.reset(new ccPointCloud(inputCloud->getName() + ".reprocessed"));
-		ccScalarField* intensitySF = new ccScalarField("Intensity");
+		ccScalarField* intensitySF = new ccScalarField(LAS_FIELD_NAMES[LAS_INTENSITY]);
 		outputCloud->addScalarField(intensitySF);
-		if (!outputCloud->reserve(static_cast<unsigned>(toProcess.size() * maxReturnCount))
-			|| !outputCloud->reserveTheFWFTable()
+		ccScalarField* returnNumberSF = 0;
+		if (maxReturnCount > 1)
+		{
+			returnNumberSF = new ccScalarField(LAS_FIELD_NAMES[LAS_NUMBER_OF_RETURNS]);
+			outputCloud->addScalarField(returnNumberSF);
+		}
+		if (	!outputCloud->reserve(static_cast<unsigned>(toProcess.size() * maxReturnCount))
+			||	!outputCloud->reserveTheFWFTable()
 			)
 		{
 			if (app)
@@ -240,7 +249,13 @@ ccPointCloud* PeakExtractionTools::ExtractNewPeaks(	const ccPointCloud* inputClo
 
 			if (intensitySF)
 			{
-				intensitySF->addElement(peak.y);
+				ScalarType s = static_cast<ScalarType>(peak.y);
+				intensitySF->addElement(s);
+			}
+			if (returnNumberSF)
+			{
+				ScalarType s = static_cast<ScalarType>(info.returnNumber);
+				returnNumberSF->addElement(s);
 			}
 		}
 
@@ -249,6 +264,10 @@ ccPointCloud* PeakExtractionTools::ExtractNewPeaks(	const ccPointCloud* inputClo
 
 		outputCloud->waveforms().shrink_to_fit();
 		outputCloud->shrinkToFit();
+		
+		outputCloud->setGlobalShift(inputCloud->getGlobalShift());
+		outputCloud->setGlobalScale(inputCloud->getGlobalScale());
+		outputCloud->setMetaData(inputCloud->metaData(), true);
 
 		if (outputCloud->hasScalarFields())
 		{

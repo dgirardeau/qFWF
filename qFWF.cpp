@@ -155,7 +155,6 @@ void qFWF::doConvertWFToCloudAction()
 	//get the overal signal amplitude
 	double overallMin, overallMax;
 	ccProgressDialog pDlg(m_app->getMainWindow());
-	pDlg.setAutoClose(false);
 	if (!cloud->computeFWFAmplitude(overallMin, overallMax, &pDlg))
 	{
 		m_app->dispToConsole("Cloud has no valid FWF data", ccMainAppInterface::ERR_CONSOLE_MESSAGE);
@@ -316,6 +315,9 @@ void qFWF::doConvertWFToCloudAction()
 		amplitudes->computeMinAndMax();
 		newCloud->setCurrentDisplayedScalarField(0);
 		newCloud->showSF(true);
+		newCloud->setGlobalShift(cloud->getGlobalShift());
+		newCloud->setGlobalScale(cloud->getGlobalScale());
+		newCloud->setMetaData(cloud->metaData(), true);
 		if (cloud->getParent())
 		{
 			cloud->getParent()->addChild(newCloud);

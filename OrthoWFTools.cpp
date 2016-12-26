@@ -23,6 +23,9 @@
 //plugins
 #include <ccMainAppInterface.h>
 
+//qCC_io
+#include <LASFields.h>
+
 //qCC_db
 #include <ccPointCloud.h>
 #include <ccScalarField.h>
@@ -137,7 +140,7 @@ struct PeakInfo
 {
 	PeakInfo()
 		: xy(-1)
-		, returnNumber(0)
+		, returnNumber(1)
 	{}
 	
 	PeakInfo(const FWFPeakDetectorInterface::Peak& p, int pos, uint8_t rn)
@@ -286,9 +289,15 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 		
 		//reserve memory for the points
 		cloud.reset(new ccPointCloud("Grid2FWF"));
-		ccScalarField* intensitySF = new ccScalarField("Intensity");
+		ccScalarField* intensitySF = new ccScalarField(LAS_FIELD_NAMES[LAS_INTENSITY]);
 		cloud->addScalarField(intensitySF);
-		if (	!cloud->reserve(static_cast<unsigned>(detectedPeaks.size()))
+		ccScalarField* returnNumberSF = 0;
+		if (maxReturnCount > 1)
+		{
+			returnNumberSF = new ccScalarField(LAS_FIELD_NAMES[LAS_NUMBER_OF_RETURNS]);
+			cloud->addScalarField(returnNumberSF);
+		}
+		if (!cloud->reserve(static_cast<unsigned>(detectedPeaks.size()))
 			||	!cloud->reserveTheFWFTable())
 		{
 			if (app)
@@ -374,7 +383,13 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 
 			if (intensitySF)
 			{
-				intensitySF->addElement(peak.y);
+				ScalarType s = static_cast<ScalarType>(peak.y);
+				intensitySF->addElement(s);
+			}
+			if (returnNumberSF)
+			{
+				ScalarType s = static_cast<ScalarType>(peakInfo.returnNumber);
+				returnNumberSF->addElement(s);
 			}
 
 			int peakIndex = static_cast<int>(floor(peak.x));
@@ -482,7 +497,6 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 				double error = (CCVector3::fromArray(Q0.u) - P0).normd();
 				assert(error < 1.0e-3);
 #endif
-
 			}
 			cloud->waveforms().push_back(w);
 
