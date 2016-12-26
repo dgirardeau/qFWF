@@ -290,6 +290,10 @@ void ComputeOrthoWFDialog::exportToGridCloud()
 	ccPointCloud* cloud = OrthoWFTools::ConvertGridToGridCloud(*m_grid, minAmpDoubleSpinBox->value(), m_app);
 	if (cloud)
 	{
+		cloud->setGlobalShift(m_cloud->getGlobalShift());
+		cloud->setGlobalScale(m_cloud->getGlobalScale());
+		cloud->setMetaData(m_cloud->metaData(), true);
+
 		cloud->setName(m_cloud->getName() + ".fwf_grid");
 		if (m_cloud->getParent())
 		{
@@ -432,6 +436,10 @@ void ComputeOrthoWFDialog::exportToFWFCloud()
 
 	if (cloud)
 	{
+		cloud->setGlobalShift(m_cloud->getGlobalShift());
+		cloud->setGlobalScale(m_cloud->getGlobalScale());
+		cloud->setMetaData(m_cloud->metaData(), true);
+
 		cloud->setName(m_cloud->getName() + ".fwf");
 		if (m_cloud->getParent())
 		{

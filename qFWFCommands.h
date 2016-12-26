@@ -48,10 +48,19 @@ void ExportFWFCloud(CLCloudDesc& cloudDesc, const QString& exportFormat, ccComma
 		//force the export format to BIN
 		cmd.setCloudExportFormat(BinFilter::GetFileFilter(), "bin");
 	}
-	else
+	else if (exportFormat == "LAS")
 	{
 		//force the export format to LAS FWF
+		cmd.setCloudExportFormat(LASFWFFilter::GetFileFilter(), "las");
+	}
+	else if (exportFormat == "LAZ")
+	{
+		//force the export format to LAZ FWF
 		cmd.setCloudExportFormat(LASFWFFilter::GetFileFilter(), "laz");
+	}
+	else
+	{
+		assert(false);
 	}
 
 	QString errorStr = cmd.exportEntity(cloudDesc);
@@ -128,7 +137,8 @@ struct CommandExtractFWFPeaks : public ccCommandLineInterface::Command
 		}
 
 		if (	exportFormat != "BIN"
-			&&	exportFormat != "LAS")
+			&&	exportFormat != "LAS"
+			&&	exportFormat != "LAZ")
 		{
 			return cmd.error(QString("Unhandled export format: %1").arg(exportFormat));
 		}
@@ -272,7 +282,8 @@ struct CommandComputeOrthoFWF : public ccCommandLineInterface::Command
 		}
 
 		if (	exportFormat != "BIN"
-			&&	exportFormat != "LAS")
+			&&	exportFormat != "LAS"
+			&&	exportFormat != "LAZ")
 		{
 			return cmd.error(QString("Unhandled export format: %1").arg(exportFormat));
 		}
@@ -362,6 +373,10 @@ struct CommandComputeOrthoFWF : public ccCommandLineInterface::Command
 			ccPointCloud* outputCloud = OrthoWFTools::ConvertGridToFWFCloud(grid, detector, maxReturnCount, descriptor, minAmplitude, cmd.widgetParent());
 			if (outputCloud)
 			{
+				outputCloud->setGlobalShift(cloudDesc.pc->getGlobalShift());
+				outputCloud->setGlobalScale(cloudDesc.pc->getGlobalScale());
+				outputCloud->setMetaData(cloudDesc.pc->metaData(), true);
+
 				//replace the current cloud by this one
 				delete cloudDesc.pc;
 				cloudDesc.pc = outputCloud;

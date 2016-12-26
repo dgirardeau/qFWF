@@ -462,7 +462,7 @@ void qFWF::doTestPeakExtraction()
 		FWFPeakDetectorNLSGauss detector;
 		FWFPeakDetectorNLSGauss::BaseParameters baseParams;
 		{
-			baseParams.maxPeakCount = 16;
+			baseParams.maxPeakCount = 15;
 			baseParams.minIntensity = 20;
 		}
 		FWFPeakDetectorNLSGauss::SpecificParameters specifParams;

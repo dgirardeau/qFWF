@@ -38,7 +38,7 @@ public:
 	//! Common parameters (to all detectors)
 	struct BaseParameters
 	{
-		unsigned maxPeakCount = 16;
+		unsigned maxPeakCount = 15;
 		double minIntensity = 0.0;
 	};
 
