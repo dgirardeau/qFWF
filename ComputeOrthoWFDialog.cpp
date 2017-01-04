@@ -177,7 +177,8 @@ void ComputeOrthoWFDialog::updateGridSize()
 	}
 	else
 	{
-		gridWidthLabel->setText(QString("%1 x %2 x %3").arg(gridSize.x).arg(gridSize.y).arg(gridSize.z));
+		uint64_t totalGridSize_bytes = static_cast<uint64_t>(gridSize.x) * static_cast<uint64_t>(gridSize.y) * static_cast<uint64_t>(gridSize.z) * sizeof(FWFGrid::CellType);
+		gridWidthLabel->setText(QString("%1 x %2 x %3 (%4 Gb)").arg(gridSize.x).arg(gridSize.y).arg(gridSize.z).arg(totalGridSize_bytes / static_cast<double>(1 << 30), 0, 'f', 2));
 		computePushButton->setEnabled(true);
 	}
 }
@@ -311,7 +312,7 @@ void ComputeOrthoWFDialog::exportToFWFCloud()
 		return;
 	}
 
-	double rangeMin = 0, rangeMax = 0;
+	FWFGrid::ValueType rangeMin = 0, rangeMax = 0;
 	if (!m_grid->computeRange(rangeMin, rangeMax))
 	{
 		if (m_app)

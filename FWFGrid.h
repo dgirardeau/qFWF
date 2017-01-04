@@ -29,9 +29,31 @@
 class ccPointCloud;
 class QWidget;
 
+//! Grid cell (template)
+template <typename T> struct FWFGridCellTpl
+{
+	void add(T value, T weight = 1)
+	{
+		value *= weight;
+		valueSum += value;
+		squareValueSum += value * value;
+		weightSum += weight;
+	}
+
+	T valueSum = 0;
+	T squareValueSum = 0;
+	T weightSum = 0;
+
+	T mean() const { return weightSum > 0 ? valueSum / weightSum : std::numeric_limits<T>::quiet_NaN(); }
+	T stdDev() const { return weightSum > 0 ? sqrt(std::abs(squareValueSum / weightSum - (valueSum * valueSum) / (weightSum * weightSum))) : std::numeric_limits<T>::quiet_NaN(); }
+};
+
 //! Raster grid type
 struct FWFGrid
 {
+	typedef float ValueType;
+	typedef FWFGridCellTpl<ValueType> CellType;
+
 	//! Default constructor
 	FWFGrid()
 		: m_steps(1.0, 1.0, 1.0)
@@ -65,7 +87,7 @@ struct FWFGrid
 	double computeMaxVal() const;
 	
 	//! Computes the range of (mean) values inside the grid
-	bool computeRange(double& minVal, double& maxVal) const;
+	bool computeRange(ValueType& minVal, ValueType& maxVal) const;
 
 	//! Clears the grid
 	void clear()
@@ -118,25 +140,6 @@ struct FWFGrid
 	//! Returns the values inside a column
 	bool getColumnValues(unsigned x, unsigned y, std::vector<double>& values, bool upsideDown = false) const;
 
-	//! Grid cell
-	struct Cell
-	{
-		void add(double value, double weight = 1.0)
-		{
-			value *= weight;
-			valueSum += value;
-			squareValueSum += value * value;
-			weightSum += weight;
-		}
-		
-		double valueSum = 0;
-		double squareValueSum = 0;
-		double weightSum = 0;
-
-		double mean() const { return weightSum > 0 ? valueSum / weightSum : std::numeric_limits<double>::quiet_NaN(); }
-		double stdDev() const { return weightSum > 0 ? sqrt(std::abs(squareValueSum / weightSum - (valueSum * valueSum) / (weightSum * weightSum))) : std::numeric_limits<double>::quiet_NaN(); }
-	};
-
 	//! Grid size
 	inline const Tuple3ui& size() const { return m_size; }
 
@@ -144,7 +147,7 @@ struct FWFGrid
 	inline const CCVector3d& steps() const { return m_steps; }
 
 	//! Slice (XY)
-	typedef std::vector<Cell> Slice;
+	typedef std::vector<CellType> Slice;
 
 	//! Returns a given slice
 	inline Slice& getSlice(size_t z) { return m_data[z]; }

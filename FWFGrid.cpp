@@ -50,11 +50,11 @@ double FWFGrid::computeMaxVal() const
 	double maxVal = 0;
 	for (const Slice& slice : m_data)
 	{
-		for (const Cell& cell : slice)
+		for (const CellType& cell : slice)
 		{
 			if (cell.weightSum > 0)
 			{
-				maxVal = std::max(cell.mean(), maxVal);
+				maxVal = std::max<double>(cell.mean(), maxVal);
 			}
 		}
 	}
@@ -67,8 +67,8 @@ unsigned FWFGrid::countValidCells(double minVal/*=0*/) const
 	{
 		for (unsigned z = 0; z < size().z; ++z)
 		{
-			const FWFGrid::Slice& slice = getSlice(z);
-			for (const FWFGrid::Cell& cell : slice)
+			const Slice& slice = getSlice(z);
+			for (const CellType& cell : slice)
 			{
 				if (cell.weightSum != 0 && cell.mean() >= minVal)
 				{
@@ -106,8 +106,8 @@ bool FWFGrid::getColumnValues(unsigned x, unsigned y, std::vector<double>& value
 	unsigned posInSlice = x + y * m_size.x;
 	for (unsigned z = 0; z < m_size.z; ++z)
 	{
-		const FWFGrid::Slice& slice = getSlice(z);
-		const FWFGrid::Cell& cell = slice[posInSlice];
+		const Slice& slice = getSlice(z);
+		const CellType& cell = slice[posInSlice];
 		//start from the top!
 		values[upsideDown ? m_size.z - 1 - z : z] = cell.weightSum > 0 ? cell.mean() : 0.0;
 	}
@@ -115,7 +115,7 @@ bool FWFGrid::getColumnValues(unsigned x, unsigned y, std::vector<double>& value
 	return true;
 }
 
-bool FWFGrid::computeRange(double& minVal, double& maxVal) const
+bool FWFGrid::computeRange(ValueType& minVal, ValueType& maxVal) const
 {
 	minVal = maxVal = 0;
 	//count the number of valid cells
@@ -123,8 +123,8 @@ bool FWFGrid::computeRange(double& minVal, double& maxVal) const
 	{
 		for (unsigned z = 0; z < m_size.z; ++z)
 		{
-			const FWFGrid::Slice& slice = getSlice(z);
-			for (const FWFGrid::Cell& cell : slice)
+			const Slice& slice = getSlice(z);
+			for (const CellType& cell : slice)
 			{
 				if (cell.weightSum != 0)
 				{
@@ -234,7 +234,7 @@ bool FWFGrid::project(ccPointCloud* cloud,
 					double r2 = dx2 + dy*dy;
 					if (r2 <= squareRadius)
 					{
-						FWFGrid::Cell& cell = slice[j * m_size.x + i];
+						CellType& cell = slice[j * m_size.x + i];
 
 						double weight = 1.0;
 						switch (interpMethod)
@@ -252,7 +252,7 @@ bool FWFGrid::project(ccPointCloud* cloud,
 							assert(false);
 						}
 
-						cell.add(amplitude, weight);
+						cell.add(static_cast<ValueType>(amplitude), static_cast<ValueType>(weight));
 					}
 				}
 			}

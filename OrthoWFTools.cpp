@@ -97,7 +97,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToGridCloud(	const FWFGrid& grid,
 		for (unsigned z = 0; z < grid.size().z; ++z)
 		{
 			const FWFGrid::Slice& slice = grid.getSlice(z);
-			const FWFGrid::Cell* _cell = &(slice[0]);
+			const FWFGrid::CellType* _cell = &(slice[0]);
 
 			Tuple3i currentVoxel(0, 0, static_cast<int>(z));
 			for (unsigned y = 0; y < grid.size().y; ++y)
@@ -118,8 +118,10 @@ ccPointCloud* OrthoWFTools::ConvertGridToGridCloud(	const FWFGrid& grid,
 
 						cloud->addPoint(CCVector3::fromArray(C.u));
 						amplitudes->addElement(meanVal);
-						stdDev->addElement(_cell->stdDev());
-						//weights->addElement(_cell->weightSum);
+						ScalarType s = static_cast<ScalarType>(_cell->stdDev());
+						stdDev->addElement(s);
+						//s = static_cast<ScalarType>(_cell->weightSum);
+						//weights->addElement(s);
 					}
 				}
 			}
