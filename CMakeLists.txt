@@ -27,7 +27,7 @@ project( QFWF_PLUGIN_DLL )
 		message( SEND_ERROR "No Eigen root directory specified (EIGEN_ROOT_DIR)" )
 	endif()
 
-	include( ../CMakePluginTpl.cmake )
+	include( ../../CMakePluginTpl.cmake )
 
 	include_directories( ${EIGEN_ROOT_DIR} )
 

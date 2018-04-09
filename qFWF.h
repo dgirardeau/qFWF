@@ -19,7 +19,7 @@
 #define Q_FWF_PLUGIN_HEADER
 
 //qCC
-#include "../ccStdPluginInterface.h"
+#include <ccStdPluginInterface.h>
 
 class ccPointCloud;
 
