@@ -44,6 +44,7 @@
 
 qFWF::qFWF(QObject* parent/*=0*/)
 	: QObject(parent)
+	, ccStdPluginInterface(":/CC/plugin/qFWF/info.json")
 	, m_convertWFToCloudAction(0)
 	, m_computeOrthoWFAction(0)
 	, m_extractNewPeaksAction(0)
