@@ -80,8 +80,10 @@ void qFWF::onNewSelection(const ccHObject::Container& selectedEntities)
 	m_selectedEntities = selectedEntities;
 }
 
-void qFWF::getActions(QActionGroup& group)
+QList<QAction*> qFWF::getActions()
 {
+	QList<QAction*> group;
+
 	if (!m_convertWFToCloudAction)
 	{
 		m_convertWFToCloudAction = new QAction("Waveform to cloud", this);
@@ -89,7 +91,7 @@ void qFWF::getActions(QActionGroup& group)
 		m_convertWFToCloudAction->setIcon(QIcon(QString::fromUtf8(":/CC/plugin/qFWF/wave2.png")));
 		connect(m_convertWFToCloudAction, SIGNAL(triggered()), this, SLOT(doConvertWFToCloudAction()));
 	}
-	group.addAction(m_convertWFToCloudAction);
+	group.push_back(m_convertWFToCloudAction);
 
 	if (!m_computeOrthoWFAction)
 	{
@@ -98,7 +100,7 @@ void qFWF::getActions(QActionGroup& group)
 		m_computeOrthoWFAction->setIcon(QIcon(QString::fromUtf8(":/CC/plugin/qFWF/wave_grid.png")));
 		connect(m_computeOrthoWFAction, SIGNAL(triggered()), this, SLOT(doComputeOrthoWF()));
 	}
-	group.addAction(m_computeOrthoWFAction);
+	group.push_back(m_computeOrthoWFAction);
 
 	if (!m_extractNewPeaksAction)
 	{
@@ -107,7 +109,7 @@ void qFWF::getActions(QActionGroup& group)
 		m_extractNewPeaksAction->setIcon(QIcon(QString::fromUtf8(":/CC/plugin/qFWF/reprocess.png")));
 		connect(m_extractNewPeaksAction, SIGNAL(triggered()), this, SLOT(doExtractNewPeaks()));
 	}
-	group.addAction(m_extractNewPeaksAction);
+	group.push_back(m_extractNewPeaksAction);
 
 	if (!m_testPeakExtractionAction)
 	{
@@ -116,7 +118,9 @@ void qFWF::getActions(QActionGroup& group)
 		m_testPeakExtractionAction->setIcon(QIcon(QString::fromUtf8(":/CC/plugin/qFWF/wave.png")));
 		connect(m_testPeakExtractionAction, SIGNAL(triggered()), this, SLOT(doTestPeakExtraction()));
 	}
-	group.addAction(m_testPeakExtractionAction);
+	group.push_back(m_testPeakExtractionAction);
+
+	return group;
 }
 
 ccPointCloud* qFWF::getCloudWithFWF()
@@ -561,9 +565,4 @@ void qFWF::registerCommands(ccCommandLineInterface* cmd)
 
 	cmd->registerCommand(ccCommandLineInterface::Command::Shared(new CommandExtractFWFPeaks));
 	cmd->registerCommand(ccCommandLineInterface::Command::Shared(new CommandComputeOrthoFWF));
-}
-
-QIcon qFWF::getIcon() const
-{
-	return QIcon(QString::fromUtf8(":/CC/plugin/qFWF/wave.png"));
 }

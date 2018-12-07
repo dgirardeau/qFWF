@@ -18,8 +18,8 @@
 #ifndef FWF_PLUGIN_COMMANDS_HEADER
 #define FWF_PLUGIN_COMMANDS_HEADER
 
-#include "../ccCommandLineInterface.h"
-#include "../qLAS_FWF/Filter/LASFWFFilter.h"
+#include "../../ccCommandLineInterface.h"
+#include "../../core/qLAS_FWF/Filter/LASFWFFilter.h"
 
 //Local
 #include "PeakExtractionTools.h"

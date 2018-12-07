@@ -1,0 +1,22 @@
+{
+  "type": "Standard",
+  "name": "FullWaveForm",
+  "icon": ":/CC/plugin/qFWF/wave.png",
+  "description": "LAS Full-Waveform processing (CNRS/OSUR)",
+  "authors": [
+    {
+      "name": "Dimitri Lague (OSUR/CNRS)"
+    }
+  ],
+  "maintainers": [
+    {
+      "name": "Dimitri Lague (OSUR/CNRS)"
+    }
+  ],
+  "references": [
+    {
+      "text": "Dimitri Lague, Geosciences Rennes",
+      "url": "https://geosciences.univ-rennes1.fr/interlocuteurs/dimitri-lague"
+    }
+  ]
+}

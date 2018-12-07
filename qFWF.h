@@ -21,29 +21,27 @@
 //qCC
 #include <ccStdPluginInterface.h>
 
+//qCC_db
+#include <ccHObject.h>
+
 class ccPointCloud;
 
 //! (LAS) Full Waveform plugin
 class qFWF : public QObject, public ccStdPluginInterface
 {
 	Q_OBJECT
-	Q_INTERFACES(ccStdPluginInterface)
-	Q_PLUGIN_METADATA(IID "cccorp.cloudcompare.plugin.qFWF")
+		Q_INTERFACES(ccStdPluginInterface)
+		Q_PLUGIN_METADATA(IID "cccorp.cloudcompare.plugin.qFWF" FILE "info.json")
 
 public:
 
 	//! Default constructor
-	qFWF(QObject* parent = 0);
-
-	//inherited from ccPluginInterface
-	virtual QString getName() const { return "FWF"; }
-	virtual QString getDescription() const { return "LAS Full-Waveform (CNRS/OSUR)"; }
-	virtual QIcon getIcon() const;
-	virtual void registerCommands(ccCommandLineInterface* cmd) override;
+	qFWF(QObject* parent = nullptr);
 
 	//inherited from ccStdPluginInterface
-	void onNewSelection(const ccHObject::Container& selectedEntities);
-	virtual void getActions(QActionGroup& group);
+	void onNewSelection(const ccHObject::Container& selectedEntities) override;
+	virtual QList<QAction*> getActions() override;
+	virtual void registerCommands(ccCommandLineInterface* cmd) override;
 
 protected slots:
 
