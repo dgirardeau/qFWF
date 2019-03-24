@@ -31,8 +31,8 @@
 #include <ccScalarField.h>
 #include <ccProgressDialog.h>
 
-//qCC_io
-#include <LASFields.h>
+//qPDALIO
+#include "../../core/IO/qPDALIO/src/LASFields.h"
 
 //Qt
 #include <QtGui>

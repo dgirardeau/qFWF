@@ -23,8 +23,8 @@
 //plugins
 #include <ccMainAppInterface.h>
 
-//qCC_io
-#include <LASFields.h>
+//qPDALIO
+#include "../../core/IO/qPDALIO/src/LASFields.h"
 
 //qCC_db
 #include <ccPointCloud.h>
