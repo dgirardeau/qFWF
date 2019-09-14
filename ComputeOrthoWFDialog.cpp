@@ -58,7 +58,6 @@ ComputeOrthoWFDialog::ComputeOrthoWFDialog(ccMainAppInterface* app, QWidget* par
 	connect(radiusDoubleSpinBox, SIGNAL(valueChanged(double)), this, SLOT(invalidateGrid()));
 	connect(interpMethodComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(invalidateGrid()));
 
-	connect(computePushButton, SIGNAL(clicked()), this, SLOT(computeGrid()));
 	connect(exportCloudPushButton, SIGNAL(clicked()), this, SLOT(exportToFWFCloud()));
 	connect(exportGridPushButton, SIGNAL(clicked()), this, SLOT(exportToGridCloud()));
 
@@ -267,7 +266,7 @@ void ComputeOrthoWFDialog::computeGrid()
 	FWFGrid::InterpolationMethod interpMethod = getInterpolationMethod();
 
 	//now fill it
-	if (!m_grid->project(m_cloud, radius, interpMethod, (m_app ? m_app->getMainWindow() : 0)))
+	if (!m_grid->project(m_cloud, radius, interpMethod, this))
 	{
 		m_grid.clear();
 		return;
@@ -429,7 +428,7 @@ void ComputeOrthoWFDialog::exportToFWFCloud()
 																s_maxReturnCount,
 																descriptor,
 																s_minPeakVal,
-																m_app ? m_app->getMainWindow() : 0,
+																this,
 																m_app);
 
 	delete detector;
