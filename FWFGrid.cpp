@@ -170,7 +170,10 @@ bool FWFGrid::project(ccPointCloud* cloud,
 		pDlg->show();
 		QCoreApplication::processEvents();
 	}
-	CCLib::NormalizedProgress nProgress(pDlg.data(), static_cast<unsigned>(cloud->size()));
+	//CCLib::NormalizedProgress nProgress(pDlg.data(), static_cast<unsigned>(cloud->size())); //DGM: can't use it with OpenMP
+	int progressCounter = 0;
+	int progress = 0;
+	bool cancelled = false;
 
 	const ccPointCloud::FWFDescriptorSet& descriptors = cloud->fwfDescriptors();
 
@@ -181,13 +184,32 @@ bool FWFGrid::project(ccPointCloud* cloud,
 	assert(m_steps.x == m_steps.y);
 	int kernelSize = static_cast<int>(ceil(radius / m_steps.x));
 
-	for (unsigned pi = 0; pi < cloud->size(); ++pi)
+#if defined(_OPENMP)
+#pragma omp parallel for
+#endif
+	for (int pii = 0; pii < static_cast<int>(cloud->size()); ++pii)
 	{
-		if (!nProgress.oneStep())
+		if (pDlg)
 		{
-			//process cancelled by the user
-			return false;
+			int currentProgress = static_cast<int>((++progressCounter) * 100.0f / cloud->size());
+			if (currentProgress > progress)
+			{
+				if (pDlg->wasCanceled())
+				{
+					//process cancelled by the user
+					cancelled = true;
+					continue;
+				}
+				else
+				{
+					progress = currentProgress;
+					QMetaObject::invokeMethod(pDlg.data(), "setValue", Qt::QueuedConnection, Q_ARG(int, currentProgress));
+					QCoreApplication::processEvents();
+				}
+			}
 		}
+
+		unsigned pi = static_cast<unsigned>(pii);
 
 		const ccWaveformProxy& w = cloud->waveformProxy(pi);
 		if (!w.isValid())
@@ -252,12 +274,12 @@ bool FWFGrid::project(ccPointCloud* cloud,
 							assert(false);
 						}
 
-						cell.add(static_cast<ValueType>(amplitude), static_cast<ValueType>(weight));
+						cell.add(static_cast<ValueType>(amplitude), static_cast<ValueType>(weight)); //DGM: should be ok to call it concurrently as it only performs additions
 					}
 				}
 			}
 		}
 	}
 
-	return true;
+	return !cancelled;
 }

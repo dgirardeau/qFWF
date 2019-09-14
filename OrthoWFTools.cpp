@@ -35,6 +35,10 @@
 #include <QCoreApplication>
 #include <QMainWindow>
 
+#if defined(_OPENMP)
+#include <omp.h>
+#endif
+
 Tuple3ui OrthoWFTools::ComputeGridSize(const ccBBox& box, double hGridStep, double vGridStep)
 {
 	if (!box.isValid() || hGridStep == 0 || vGridStep == 0)
@@ -169,7 +173,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 		if (app)
 			app->dispToConsole(QString("Internal error: invalid input detector").arg(minVal), ccMainAppInterface::ERR_CONSOLE_MESSAGE);
 		assert(false);
-		return 0;
+		return nullptr;
 	}
 	
 	//count the number of valid cells
@@ -178,7 +182,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 	{
 		if (app)
 			app->dispToConsole(QString("Grid has no cell with a value above %1?!").arg(minVal), ccMainAppInterface::ERR_CONSOLE_MESSAGE);
-		return 0;
+		return nullptr;
 	}
 
 	QScopedPointer<ccPointCloud> cloud(0);
@@ -213,8 +217,31 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 		QAtomicInt peakCount(0);
 
 		bool error = false;
+		int numProcess = 1;
+
 #if defined(_OPENMP)
 		detectedPeaks.resize(sliceSize * maxReturnCount); //we must prevent any reallocation during the parallel process!!!
+		numProcess = std::max(1, omp_get_max_threads());
+#endif
+
+		//pre-allocate memory to speed-up the process
+		std::vector< std::vector<double> > waveforms;
+		try
+		{
+			waveforms.resize(numProcess);
+			for (int i = 0; i < numProcess; ++i)
+			{
+				waveforms[i].resize(grid.size().z);
+			}
+		}
+		catch (const std::bad_alloc&)
+		{
+			if (app)
+				app->dispToConsole(QObject::tr("Not enough memory"), ccMainAppInterface::ERR_CONSOLE_MESSAGE);
+			return nullptr;
+		}
+
+#if defined(_OPENMP)
 #pragma omp parallel for
 #endif
 		for (int xy = 0; xy < static_cast<int>(sliceSize); ++xy)
@@ -231,6 +258,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 				{
 					if (pDlg->wasCanceled())
 					{
+						//process cancelled by the user
 						error = true;
 						continue;
 					}
@@ -247,7 +275,11 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 			unsigned y = (static_cast<unsigned>(xy) - x) / grid.size().x;
 
 			//grab the signal 'values'
-			std::vector<double> waveform;
+#if defined(_OPENMP)
+			std::vector<double>& waveform = waveforms[omp_get_thread_num()];
+#else
+			std::vector<double>& waveform = waveforms[0];
+#endif
 			if (!grid.getColumnValues(x, y, waveform, true))
 			{
 				error = true;
@@ -288,14 +320,14 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 		{
 			if (app)
 				app->dispToConsole("An error occurred", ccMainAppInterface::ERR_CONSOLE_MESSAGE);
-			return 0;
+			return nullptr;
 		}
 
 		if (peakCount == 0)
 		{
 			if (app)
 				app->dispToConsole("No peak detected", ccMainAppInterface::ERR_CONSOLE_MESSAGE);
-			return 0;
+			return nullptr;
 		}
 		detectedPeaks.resize(peakCount);
 		
@@ -314,7 +346,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 		{
 			if (app)
 				app->dispToConsole("Not enough memory", ccMainAppInterface::ERR_CONSOLE_MESSAGE);
-			return 0;
+			return nullptr;
 		}
 
 		//the descriptor has already been specified by the caller
@@ -359,7 +391,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 			if (pDlg && !nProgress.oneStep())
 			{
 				//process cancelled by the user
-				return 0;
+				return nullptr;
 			}
 
 			const PeakInfo& peakInfo = detectedPeaks[i];
@@ -487,7 +519,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 						assert(false);
 						if (app)
 							app->dispToConsole("Internal error: wrong 'bps' setting", ccMainAppInterface::ERR_CONSOLE_MESSAGE);
-						return 0;
+						return nullptr;
 					}
 				}
 				previousWaveStop = copyStopIndex;
