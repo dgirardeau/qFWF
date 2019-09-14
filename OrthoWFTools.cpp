@@ -263,12 +263,22 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 							[](const FWFPeakDetectorInterface::Peak& a, const FWFPeakDetectorInterface::Peak& b) -> bool { return a.x < b.x; }
 				);
 
+				//we reserve the right 'range' of peaks so as to store them next to each other
+				//(even in parallel mode)
+				int candidatePeakCount = 0;
+				for (const FWFPeakDetectorInterface::Peak& peak : peaks)
+				{
+					if (peak.y >= minVal)
+						++candidatePeakCount;
+				}
+				int targetIndex = peakCount.fetchAndAddRelaxed(candidatePeakCount);
+
 				uint8_t returnNumber = 1;
 				for (const FWFPeakDetectorInterface::Peak& peak : peaks)
 				{
 					if (peak.y >= minVal)
 					{
-						detectedPeaks[peakCount++] = PeakInfo(peak, xy, returnNumber++);
+						detectedPeaks[targetIndex++] = PeakInfo(peak, xy, returnNumber++);
 					}
 				}
 			}
@@ -299,7 +309,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 			returnNumberSF = new ccScalarField(LAS_FIELD_NAMES[LAS_NUMBER_OF_RETURNS]);
 			cloud->addScalarField(returnNumberSF);
 		}
-		if (!cloud->reserve(static_cast<unsigned>(detectedPeaks.size()))
+		if (	!cloud->reserve(static_cast<unsigned>(detectedPeaks.size()))
 			||	!cloud->reserveTheFWFTable())
 		{
 			if (app)
