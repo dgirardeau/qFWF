@@ -7,6 +7,8 @@ if (INSTALL_QFWF_PLUGIN)
 #CloudCompare 'FWF' plugin
 project( QFWF_PLUGIN_DLL )
 
+	include( CMakePolicies NO_POLICY_SCOPE )
+
 	#As we are going to re-use several components of the main qCC project
 	#we define its sources path relatively to the plugin's dir
 	set(CloudCompare_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../qCC)
