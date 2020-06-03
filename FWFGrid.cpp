@@ -170,7 +170,7 @@ bool FWFGrid::project(ccPointCloud* cloud,
 		pDlg->show();
 		QCoreApplication::processEvents();
 	}
-	//CCLib::NormalizedProgress nProgress(pDlg.data(), static_cast<unsigned>(cloud->size())); //DGM: can't use it with OpenMP
+	//CCCoreLib::NormalizedProgress nProgress(pDlg.data(), static_cast<unsigned>(cloud->size())); //DGM: can't use it with OpenMP
 	int progressCounter = 0;
 	int progress = 0;
 	bool cancelled = false;

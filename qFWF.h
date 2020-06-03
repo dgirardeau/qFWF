@@ -1,3 +1,5 @@
+#pragma once
+
 //##########################################################################
 //#                                                                        #
 //#                       CLOUDCOMPARE PLUGIN: qFWF                        #
@@ -15,14 +17,8 @@
 //#                                                                        #
 //##########################################################################
 
-#ifndef Q_FWF_PLUGIN_HEADER
-#define Q_FWF_PLUGIN_HEADER
-
 //qCC
 #include <ccStdPluginInterface.h>
-
-//qCC_db
-#include <ccHObject.h>
 
 class ccPointCloud;
 
@@ -30,18 +26,19 @@ class ccPointCloud;
 class qFWF : public QObject, public ccStdPluginInterface
 {
 	Q_OBJECT
-		Q_INTERFACES(ccStdPluginInterface)
-		Q_PLUGIN_METADATA(IID "cccorp.cloudcompare.plugin.qFWF" FILE "info.json")
+	Q_INTERFACES(ccPluginInterface ccStdPluginInterface)
+
+	Q_PLUGIN_METADATA(IID "cccorp.cloudcompare.plugin.qFWF" FILE "info.json")
 
 public:
 
 	//! Default constructor
-	qFWF(QObject* parent = nullptr);
+	explicit qFWF(QObject* parent = nullptr);
 
 	//inherited from ccStdPluginInterface
 	void onNewSelection(const ccHObject::Container& selectedEntities) override;
-	virtual QList<QAction*> getActions() override;
-	virtual void registerCommands(ccCommandLineInterface* cmd) override;
+	QList<QAction*> getActions() override;
+	void registerCommands(ccCommandLineInterface* cmd) override;
 
 protected slots:
 
@@ -69,5 +66,3 @@ protected: //members
 	//! Currently selected entities
 	ccHObject::Container m_selectedEntities;
 };
-
-#endif //Q_FWF_PLUGIN_HEADER

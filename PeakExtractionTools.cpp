@@ -29,7 +29,7 @@
 #include <ccProgressDialog.h>
 
 //qPDALIO
-#include "../../core/IO/qPDALIO/src/LASFields.h"
+#include "../../core/IO/qPDALIO/include/LASFields.h"
 
 //Qt
 #include <QCoreApplication>
@@ -129,7 +129,7 @@ ccPointCloud* PeakExtractionTools::ExtractNewPeaks(	const ccPointCloud* inputClo
 		pDlg.setRange(0, 100);
 		pDlg.show();
 		QCoreApplication::processEvents();
-		//CCLib::NormalizedProgress nProgress(&pDlg, toProcess.size()); //DGM: can't use it with OpenMP
+		//CCCoreLib::NormalizedProgress nProgress(&pDlg, toProcess.size()); //DGM: can't use it with OpenMP
 		int progressCounter = 0;
 		int progress = 0;
 
@@ -222,7 +222,7 @@ ccPointCloud* PeakExtractionTools::ExtractNewPeaks(	const ccPointCloud* inputClo
 		}
 
 		pDlg.setValue(0);
-		CCLib::NormalizedProgress nProgress(&pDlg, static_cast<unsigned>(detectedPeaks.size()));
+		CCCoreLib::NormalizedProgress nProgress(&pDlg, static_cast<unsigned>(detectedPeaks.size()));
 
 		//now create the corresponding points
 		for (const PeakInfo& info : detectedPeaks)

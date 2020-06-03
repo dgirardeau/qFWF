@@ -32,7 +32,7 @@
 #include <ccProgressDialog.h>
 
 //qPDALIO
-#include "../../core/IO/qPDALIO/src/LASFields.h"
+#include "../../core/IO/qPDALIO/include/LASFields.h"
 
 //Qt
 #include <QtGui>
@@ -190,7 +190,7 @@ void qFWF::doConvertWFToCloudAction()
 	s_minAplitude = dialog.minAmplitudeDoubleSpinBox->value();
 
 	//shall we use the return numbers?
-	CCLib::ScalarField* returnNumbers = 0;
+	CCCoreLib::ScalarField* returnNumbers = 0;
 	if (s_useOnlyFirstEcho && rnSFIndex >= 0)
 	{
 		returnNumbers = cloud->getScalarField(rnSFIndex);
@@ -204,7 +204,7 @@ void qFWF::doConvertWFToCloudAction()
 	size_t valueCount = 0;
 	{
 		//update the progress dialog
-		CCLib::NormalizedProgress nProgress(&pDlg, static_cast<unsigned>(cloud->size()));
+		CCCoreLib::NormalizedProgress nProgress(&pDlg, static_cast<unsigned>(cloud->size()));
 		pDlg.setValue(0);
 		pDlg.setWindowTitle("FWF");
 		pDlg.setLabelText("Counting candidates...");
@@ -265,7 +265,7 @@ void qFWF::doConvertWFToCloudAction()
 	//now we can create the cloud
 	{
 		//update the progress dialog
-		CCLib::NormalizedProgress nProgress(&pDlg, static_cast<unsigned>(cloud->size()));
+		CCCoreLib::NormalizedProgress nProgress(&pDlg, static_cast<unsigned>(cloud->size()));
 		pDlg.setValue(0);
 		pDlg.setWindowTitle("FWF");
 		pDlg.setLabelText("Exporting candidates...");

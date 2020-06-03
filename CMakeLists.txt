@@ -4,9 +4,11 @@ option( INSTALL_QFWF_PLUGIN "Check to install the qFWF plugin" OFF )
 
 if (INSTALL_QFWF_PLUGIN)
 
-#CloudCompare 'FWF' plugin
-project( QFWF_PLUGIN_DLL )
+	#CloudCompare 'FWF' plugin
+	project( QFWF_PLUGIN_DLL )
 
+	AddPlugin( NAME ${PROJECT_NAME} )
+	
 	include( CMakePolicies NO_POLICY_SCOPE )
 
 	#As we are going to re-use several components of the main qCC project
@@ -16,12 +18,25 @@ project( QFWF_PLUGIN_DLL )
 	#include the whole CC directory (easier)
 	include_directories( ${CloudCompare_SOURCE_DIR} )
 	
+	file( GLOB PLUGIN_HDR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/*.h )
+	file( GLOB PLUGIN_SRC_LIST ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp )
+	file( GLOB PLUGIN_UI_LIST ${CMAKE_CURRENT_SOURCE_DIR}/*.ui )
+	
 	#we need the ccBoundingBoxEditorDlg dialog
-	file( GLOB CC_PLUGIN_CUSTOM_HEADER_LIST ${CloudCompare_SOURCE_DIR}/ccBoundingBoxEditorDlg*.h )
-	file( GLOB CC_PLUGIN_CUSTOM_SOURCE_LIST ${CloudCompare_SOURCE_DIR}/ccBoundingBoxEditorDlg*.cpp )
+	file( GLOB CC_HDR_LIST ${CloudCompare_SOURCE_DIR}/ccBoundingBoxEditorDlg*.h )
+	file( GLOB CC_SRC_LIST ${CloudCompare_SOURCE_DIR}/ccBoundingBoxEditorDlg*.cpp )
+	set( CC_UI_LIST	${CloudCompare_SOURCE_DIR}/ui_templates/boundingBoxEditorDlg.ui )
 
-	#don't forget associated widgets(.ui)
-	set( CC_PLUGIN_CUSTOM_UI_LIST ${CloudCompare_SOURCE_DIR}/ui_templates/boundingBoxEditorDlg.ui )
+	# add source files
+	target_sources( ${PROJECT_NAME}
+		PRIVATE
+			${PLUGIN_HDR_LIST}
+			${PLUGIN_SRC_LIST}
+			${PLUGIN_UI_LIST}
+			${CC_HDR_LIST}
+			${CC_SRC_LIST}
+			${CC_UI_LIST}
+	)
 	
 	#we also need Eigen (for Levenberg-Marquardt optimization, etc.)
 	set( EIGEN_ROOT_DIR "" CACHE PATH "Eigen root (contains the Eigen directory)" )
@@ -29,7 +44,20 @@ project( QFWF_PLUGIN_DLL )
 		message( SEND_ERROR "No Eigen root directory specified (EIGEN_ROOT_DIR)" )
 	endif()
 
-	include( ../../CMakePluginTpl.cmake )
+    #include( CMakePluginTemplate )
+	#include( ../../CMakePluginTpl.cmake )
+
+    set_target_properties( ${PROJECT_NAME} PROPERTIES
+        # FIXME Remove after everything has moved to targets
+        AUTOUIC_SEARCH_PATHS "${CloudCompare_SOURCE_DIR}/ui_templates;${CMAKE_CURRENT_SOURCE_DIR}/ui"
+    )
+
+    # FIXME These are required becaue we have dependencies outside of the api
+    target_include_directories( ${PROJECT_NAME}
+        PRIVATE
+            ${CloudCompare_SOURCE_DIR}
+            ${CloudCompare_SOURCE_DIR}/../common
+    )
 
 	include_directories( ${EIGEN_ROOT_DIR} )
 
