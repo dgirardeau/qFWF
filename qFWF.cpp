@@ -25,6 +25,7 @@
 #include "FWFPeakDetectorNaive.h"
 #include "FWFPeakDetectorNLSGauss.h"
 #include "qFWFCommands.h"
+#include "qFWFDisclaimerDlg.h"
 
 //qCC_db
 #include <ccPointCloud.h>
@@ -32,7 +33,7 @@
 #include <ccProgressDialog.h>
 
 //qPDALIO
-#include "../../core/IO/qPDALIO/include/LASFields.h"
+#include "../../core/IO/qLASIO/include/LasDetails.h"
 
 //Qt
 #include <QtGui>
@@ -150,6 +151,10 @@ ccPointCloud* qFWF::getCloudWithFWF()
 
 void qFWF::doConvertWFToCloudAction()
 {
+    //disclaimer accepted?
+    if (!qFWFDisclaimerDlg::show(m_app))
+        return;
+
 	ccPointCloud* cloud = getCloudWithFWF();
 	if (!cloud)
 	{
@@ -167,7 +172,7 @@ void qFWF::doConvertWFToCloudAction()
 	}
 
 	//check if the cloud has a 'return number' scalar field
-	int rnSFIndex = cloud->getScalarFieldIndexByName(LAS_FIELD_NAMES[LAS_RETURN_NUMBER]);
+	int rnSFIndex = cloud->getScalarFieldIndexByName(LasNames::ReturnNumber);
 
 	//init dialog
 	ConvertWFToCloudDialog dialog;
@@ -334,6 +339,10 @@ void qFWF::doConvertWFToCloudAction()
 
 void qFWF::doComputeOrthoWF()
 {
+    //disclaimer accepted?
+    if (!qFWFDisclaimerDlg::show(m_app))
+        return;
+
 	ccPointCloud* cloud = getCloudWithFWF();
 	if (!cloud)
 	{
@@ -354,6 +363,10 @@ void qFWF::doComputeOrthoWF()
 
 void qFWF::doExtractNewPeaks()
 {
+    //disclaimer accepted?
+    if (!qFWFDisclaimerDlg::show(m_app))
+        return;
+
 	ccPointCloud* cloud = getCloudWithFWF();
 	if (!cloud)
 	{
@@ -431,6 +444,10 @@ void qFWF::doExtractNewPeaks()
 
 void qFWF::doTestPeakExtraction()
 {
+    //disclaimer accepted?
+    if (!qFWFDisclaimerDlg::show(m_app))
+        return;
+
 	ccPointCloud* cloud = getCloudWithFWF();
 	if (!cloud)
 	{

@@ -44,8 +44,9 @@ ComputeOrthoWFDialog::ComputeOrthoWFDialog(ccMainAppInterface* app, QWidget* par
 	, m_bbEditorDlg(0)
 {
 	setupUi(this);
-
-	m_bbEditorDlg = new ccBoundingBoxEditorDlg(this);
+	bool showBoxAxes = true;
+	bool showRasterGridImage = true;
+	m_bbEditorDlg = new ccBoundingBoxEditorDlg(showBoxAxes, showRasterGridImage, this);
 
 	connect(hGridStepDoubleSpinBox,	SIGNAL(valueChanged(double)), this, SLOT(updateGridSize()));
 	connect(vGridStepDoubleSpinBox,	SIGNAL(valueChanged(double)), this, SLOT(updateGridSize()));
