@@ -1,6 +1,6 @@
 //##########################################################################
 //#                                                                        #
-//#                       CLOUDCOMPARE PLUGIN: qM3C2                       #
+//#                       CLOUDCOMPARE PLUGIN: qFWF.                       #
 //#                                                                        #
 //#  This program is free software; you can redistribute it and/or modify  #
 //#  it under the terms of the GNU General Public License as published by  #
@@ -31,7 +31,6 @@ qFWFDisclaimerDlg::qFWFDisclaimerDlg(QWidget *parent)
     , m_ui( new Ui::DisclaimerDialog )
 {
     m_ui->setupUi( this );
-    // reimplement event processing
 
     QString compilationInfo;
     compilationInfo += QStringLiteral("<br><i>Compiled with");

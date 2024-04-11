@@ -195,7 +195,7 @@ void qFWF::doConvertWFToCloudAction()
 	s_minAplitude = dialog.minAmplitudeDoubleSpinBox->value();
 
 	//shall we use the return numbers?
-	CCCoreLib::ScalarField* returnNumbers = 0;
+	CCCoreLib::ScalarField* returnNumbers = nullptr;
 	if (s_useOnlyFirstEcho && rnSFIndex >= 0)
 	{
 		returnNumbers = cloud->getScalarField(rnSFIndex);
