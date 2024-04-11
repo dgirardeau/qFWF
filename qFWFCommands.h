@@ -18,8 +18,8 @@
 #ifndef FWF_PLUGIN_COMMANDS_HEADER
 #define FWF_PLUGIN_COMMANDS_HEADER
 
-#include "../../ccCommandLineInterface.h"
-#include "../../core/IO/qLASFWFIO/Filter/LASFWFFilter.h"
+#include <ccCommandLineInterface.h>
+#include "../../core/IO/qLASFWFIO/include/LASFWFFilter.h"
 
 //Local
 #include "PeakExtractionTools.h"
@@ -51,12 +51,12 @@ void ExportFWFCloud(CLCloudDesc& cloudDesc, const QString& exportFormat, ccComma
 	else if (exportFormat == "LAS")
 	{
 		//force the export format to LAS FWF
-		cmd.setCloudExportFormat(LASFWFFilter::GetFileFilter(), "las");
+		cmd.setCloudExportFormat("LAS file (*.las *.laz)", "las");
 	}
 	else if (exportFormat == "LAZ")
 	{
 		//force the export format to LAZ FWF
-		cmd.setCloudExportFormat(LASFWFFilter::GetFileFilter(), "laz");
+		cmd.setCloudExportFormat("LAS file (*.las *.laz)", "laz");
 	}
 	else
 	{

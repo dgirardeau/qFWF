@@ -25,6 +25,7 @@
 #include "FWFPeakDetectorNaive.h"
 #include "FWFPeakDetectorNLSGauss.h"
 #include "qFWFCommands.h"
+#include "qFWFDisclaimerDlg.h"
 
 //qCC_db
 #include <ccPointCloud.h>
@@ -32,7 +33,7 @@
 #include <ccProgressDialog.h>
 
 //qPDALIO
-#include "../../core/IO/qPDALIO/src/LASFields.h"
+#include "../../core/IO/qLASIO/include/LasDetails.h"
 
 //Qt
 #include <QtGui>
@@ -150,6 +151,10 @@ ccPointCloud* qFWF::getCloudWithFWF()
 
 void qFWF::doConvertWFToCloudAction()
 {
+    //disclaimer accepted?
+    if (!qFWFDisclaimerDlg::show(m_app))
+        return;
+
 	ccPointCloud* cloud = getCloudWithFWF();
 	if (!cloud)
 	{
@@ -167,7 +172,7 @@ void qFWF::doConvertWFToCloudAction()
 	}
 
 	//check if the cloud has a 'return number' scalar field
-	int rnSFIndex = cloud->getScalarFieldIndexByName(LAS_FIELD_NAMES[LAS_RETURN_NUMBER]);
+	int rnSFIndex = cloud->getScalarFieldIndexByName(LasNames::ReturnNumber);
 
 	//init dialog
 	ConvertWFToCloudDialog dialog;
@@ -190,7 +195,7 @@ void qFWF::doConvertWFToCloudAction()
 	s_minAplitude = dialog.minAmplitudeDoubleSpinBox->value();
 
 	//shall we use the return numbers?
-	CCLib::ScalarField* returnNumbers = 0;
+	CCCoreLib::ScalarField* returnNumbers = nullptr;
 	if (s_useOnlyFirstEcho && rnSFIndex >= 0)
 	{
 		returnNumbers = cloud->getScalarField(rnSFIndex);
@@ -204,7 +209,7 @@ void qFWF::doConvertWFToCloudAction()
 	size_t valueCount = 0;
 	{
 		//update the progress dialog
-		CCLib::NormalizedProgress nProgress(&pDlg, static_cast<unsigned>(cloud->size()));
+		CCCoreLib::NormalizedProgress nProgress(&pDlg, static_cast<unsigned>(cloud->size()));
 		pDlg.setValue(0);
 		pDlg.setWindowTitle("FWF");
 		pDlg.setLabelText("Counting candidates...");
@@ -265,7 +270,7 @@ void qFWF::doConvertWFToCloudAction()
 	//now we can create the cloud
 	{
 		//update the progress dialog
-		CCLib::NormalizedProgress nProgress(&pDlg, static_cast<unsigned>(cloud->size()));
+		CCCoreLib::NormalizedProgress nProgress(&pDlg, static_cast<unsigned>(cloud->size()));
 		pDlg.setValue(0);
 		pDlg.setWindowTitle("FWF");
 		pDlg.setLabelText("Exporting candidates...");
@@ -334,6 +339,10 @@ void qFWF::doConvertWFToCloudAction()
 
 void qFWF::doComputeOrthoWF()
 {
+    //disclaimer accepted?
+    if (!qFWFDisclaimerDlg::show(m_app))
+        return;
+
 	ccPointCloud* cloud = getCloudWithFWF();
 	if (!cloud)
 	{
@@ -354,6 +363,10 @@ void qFWF::doComputeOrthoWF()
 
 void qFWF::doExtractNewPeaks()
 {
+    //disclaimer accepted?
+    if (!qFWFDisclaimerDlg::show(m_app))
+        return;
+
 	ccPointCloud* cloud = getCloudWithFWF();
 	if (!cloud)
 	{
@@ -431,6 +444,10 @@ void qFWF::doExtractNewPeaks()
 
 void qFWF::doTestPeakExtraction()
 {
+    //disclaimer accepted?
+    if (!qFWFDisclaimerDlg::show(m_app))
+        return;
+
 	ccPointCloud* cloud = getCloudWithFWF();
 	if (!cloud)
 	{

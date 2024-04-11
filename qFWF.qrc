@@ -1,10 +1,11 @@
 <RCC>
-  <qresource prefix="/CC/plugin/qFWF">
-    <file>reprocess.png</file>
-    <file>wave.png</file>
-    <file>wave_analysis.png</file>
-    <file>wave_grid.png</file>
-    <file>wave2.png</file>
-    <file>info.json</file>
-  </qresource>
+    <qresource prefix="/CC/plugin/qFWF">
+        <file>reprocess.png</file>
+        <file>wave.png</file>
+        <file>wave_analysis.png</file>
+        <file>wave_grid.png</file>
+        <file>wave2.png</file>
+        <file>info.json</file>
+        <file>DisclaimerFWF.png</file>
+    </qresource>
 </RCC>

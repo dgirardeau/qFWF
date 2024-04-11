@@ -24,7 +24,7 @@
 #include <ccMainAppInterface.h>
 
 //qPDALIO
-#include "../../core/IO/qPDALIO/src/LASFields.h"
+#include "../../core/IO/qPDALIO/include/LASFields.h"
 
 //qCC_db
 #include <ccPointCloud.h>
@@ -209,7 +209,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 			pDlg->show();
 			QCoreApplication::processEvents();
 		}
-		//CCLib::NormalizedProgress nProgress2(pDlg, static_cast<unsigned>(sliceSize)); //DGM: can't use it with OpenMP
+		//CCCoreLib::NormalizedProgress nProgress2(pDlg, static_cast<unsigned>(sliceSize)); //DGM: can't use it with OpenMP
 		int progressCounter = 0;
 		int progress = 0;
 
@@ -378,7 +378,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 			pDlg->show();
 			QCoreApplication::processEvents();
 		}
-		CCLib::NormalizedProgress nProgress(pDlg.data(), static_cast<unsigned>(detectedPeaks.size()));
+		CCCoreLib::NormalizedProgress nProgress(pDlg.data(), static_cast<unsigned>(detectedPeaks.size()));
 		CCVector3d columnOrigin;
 		int previousWaveStart = -1;
 		int previousWaveStop = -1;
@@ -589,7 +589,7 @@ ccBBox OrthoWFTools::ComputeFWFBox(ccPointCloud* cloud, ccProgressDialog* pDlg/*
 	}
 
 	//update the progress dialog
-	CCLib::NormalizedProgress nProgress(pDlg, static_cast<unsigned>(cloud->size()));
+	CCCoreLib::NormalizedProgress nProgress(pDlg, static_cast<unsigned>(cloud->size()));
 	if (pDlg)
 	{
 		pDlg->setWindowTitle("FWF");
