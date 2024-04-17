@@ -9,6 +9,20 @@ if (INSTALL_QFWF_PLUGIN)
 
 	AddPlugin( NAME ${PROJECT_NAME} )
 	
+	list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+	find_package(LASzip MODULE REQUIRED)
+	target_link_libraries(${PROJECT_NAME} LASzip::LASzip)
+
+	target_sources( ${PROJECT_NAME} PRIVATE
+		${CMAKE_CURRENT_LIST_DIR}/../../core/IO/qLASIO/src/LasVlr.cpp
+		${CMAKE_CURRENT_LIST_DIR}/../../core/IO/qLASIO/src/LasDetails.cpp
+		${CMAKE_CURRENT_LIST_DIR}/../../core/IO/qLASIO/src/LasScalarField.cpp
+		${CMAKE_CURRENT_LIST_DIR}/../../core/IO/qLASIO/include/LasVlr.h
+	)
+	target_include_directories( ${PROJECT_NAME} PRIVATE
+		${CMAKE_CURRENT_LIST_DIR}/../../core/IO/qLASIO/include
+	)
+
 	include( CMakePolicies NO_POLICY_SCOPE )
 
 	#As we are going to re-use several components of the main qCC project
