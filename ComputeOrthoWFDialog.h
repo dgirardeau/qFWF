@@ -22,6 +22,7 @@
 
 //Local
 #include "FWFGrid.h"
+#include "ccWaveform.h"
 
 //Qt
 #include <QDialog>
@@ -37,6 +38,7 @@ class ccPointCloud;
 class ccProgressDialog;
 class ccBoundingBoxEditorDlg;
 class ccMainAppInterface;
+class ccWaveform;
 
 class ComputeOrthoWFDialog : public QDialog, public Ui::ComputeOrthoWFDialog
 {
@@ -49,6 +51,8 @@ public:
 
 	//! Sets the associated cloud
 	bool setCloud(ccPointCloud* cloud, ccProgressDialog* progressDialog = 0);
+
+	static void ResetVlrsUsingOnlyOneDescriptor(const ccPointCloud* src, ccPointCloud* dst, const WaveformDescriptor& descriptor);
 
 protected slots:
 

@@ -143,6 +143,44 @@ bool ComputeOrthoWFDialog::setCloud(ccPointCloud* cloud, ccProgressDialog* pDlg/
 	return true;
 }
 
+void ComputeOrthoWFDialog::ResetVlrsUsingOnlyOneDescriptor(const ccPointCloud* src, ccPointCloud* dst, const WaveformDescriptor& descriptor)
+{
+	// get LAS.vlrs of the source, copy it and reset the vlrs field
+	LasVlr vlrs(src->metaData()["LAS.vlrs"].value<LasVlr>());
+	vlrs.vlrs.clear();
+
+	// convert descriptor to vlr
+	laszip_vlr_struct vlr;
+	strcpy(vlr.user_id, "LASF_Spec");							// user_id
+	vlr.record_id = 100;										// record_id
+	vlr.record_length_after_header = 26;						// record_length_after_header
+	strcpy(vlr.description, "CloudCompare ortho waveforms");	// description
+	unsigned char waveformCompressionType = 0;
+	vlr.data = static_cast<laszip_U8*>(malloc(26));				// data
+	laszip_U8* ptr;
+	vlr.data[0] = descriptor.bitsPerSample;
+	vlr.data[1] = waveformCompressionType;
+	ptr = (laszip_U8*)&descriptor.numberOfSamples; // copy number of samples
+	vlr.data[2] = ptr[0];
+	vlr.data[3] = ptr[1];
+	vlr.data[4] = ptr[2];
+	vlr.data[5] = ptr[3];
+	ptr = (laszip_U8*)&descriptor.samplingRate_ps; // copy sampling rate
+	vlr.data[6] = ptr[0];
+	vlr.data[7] = ptr[1];
+	vlr.data[8] = ptr[2];
+	vlr.data[9] = ptr[3];
+	double* digitizerGain;
+	double* digitizerOffset;
+	digitizerGain = (double*) &vlr.data[10];
+	digitizerOffset = (double*) &vlr.data[18];
+	*digitizerGain = descriptor.digitizerGain; // copy digitizer gain
+	*digitizerOffset = descriptor.digitizerOffset; // copy digitizer offset
+
+	vlrs.vlrs.push_back(vlr); // add vlr to vlrs
+	dst->setMetaData("LAS.vlrs", QVariant::fromValue(vlrs)); // update the value of LAS.vlr
+}
+
 void ComputeOrthoWFDialog::editBox()
 {
 	if (m_bbEditorDlg && m_bbEditorDlg->exec())
@@ -445,40 +483,7 @@ void ComputeOrthoWFDialog::exportToFWFCloud()
 		// copy the metadata
 		cloud->setMetaData(m_cloud->metaData());
 
-		// reset LAS.vlrs metadata (the value of m_cloud is not correct for the ortho waveforms)
-		LasVlr vlrs(m_cloud->metaData()["LAS.vlrs"].value<LasVlr>());
-		vlrs.vlrs.clear();
-
-		// convert descriptor to vlr
-		laszip_vlr_struct vlr;
-		strcpy(vlr.user_id, "LASF_Spec");							// user_id
-		vlr.record_id = 100;										// record_id
-		vlr.record_length_after_header = 26;						// record_length_after_header
-		strcpy(vlr.description, "CloudCompare ortho waveforms");	// description
-		unsigned char waveformCompressionType = 0;
-		vlr.data = static_cast<laszip_U8*>(malloc(26));				// data
-		laszip_U8* ptr;
-		vlr.data[0] = descriptor.bitsPerSample;
-		vlr.data[1] = waveformCompressionType;
-		ptr = (laszip_U8*)&descriptor.numberOfSamples; // copy number of samples
-		vlr.data[2] = ptr[0];
-		vlr.data[3] = ptr[1];
-		vlr.data[4] = ptr[2];
-		vlr.data[5] = ptr[3];
-		ptr = (laszip_U8*)&descriptor.samplingRate_ps; // copy sampling rate
-		vlr.data[6] = ptr[0];
-		vlr.data[7] = ptr[1];
-		vlr.data[8] = ptr[2];
-		vlr.data[9] = ptr[3];
-		double* digitizerGain;
-		double* digitizerOffset;
-		digitizerGain = (double*) &vlr.data[10];
-		digitizerOffset = (double*) &vlr.data[18];
-		*digitizerGain = descriptor.digitizerGain; // copy digitizer gain
-		*digitizerOffset = descriptor.digitizerOffset; // copy digitizer offset
-
-		vlrs.vlrs.push_back(vlr); // add vlr to vlrs
-		cloud->setMetaData("LAS.vlrs", QVariant::fromValue(vlrs)); // update the value of LAS.vlr
+		ResetVlrsUsingOnlyOneDescriptor(m_cloud, cloud, descriptor);
 
 		cloud->setName(m_cloud->getName() + ".fwf");
 		if (m_cloud->getParent())

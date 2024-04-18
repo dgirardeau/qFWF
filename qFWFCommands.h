@@ -19,13 +19,13 @@
 #define FWF_PLUGIN_COMMANDS_HEADER
 
 #include <ccCommandLineInterface.h>
-#include "../../core/IO/qLASFWFIO/include/LASFWFFilter.h"
 
 //Local
 #include "PeakExtractionTools.h"
 #include "FWFPeakDetectorNaive.h"
 #include "FWFPeakDetectorNLSGauss.h"
 #include "OrthoWFTools.h"
+#include "ComputeOrthoWFDialog.h"
 
 //qCC_io
 #include "BinFilter.h"
@@ -376,6 +376,8 @@ struct CommandComputeOrthoFWF : public ccCommandLineInterface::Command
 				outputCloud->setGlobalShift(cloudDesc.pc->getGlobalShift());
 				outputCloud->setGlobalScale(cloudDesc.pc->getGlobalScale());
 				outputCloud->setMetaData(cloudDesc.pc->metaData(), true);
+
+				ComputeOrthoWFDialog::ResetVlrsUsingOnlyOneDescriptor(cloudDesc.pc, outputCloud, descriptor);
 
 				//replace the current cloud by this one
 				delete cloudDesc.pc;
