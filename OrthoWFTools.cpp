@@ -23,8 +23,8 @@
 //plugins
 #include <ccMainAppInterface.h>
 
-//qPDALIO
-#include "../../core/IO/qPDALIO/include/LASFields.h"
+//qLASIO
+#include "LasDetails.h"
 
 //qCC_db
 #include <ccPointCloud.h>
@@ -333,12 +333,12 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 		
 		//reserve memory for the points
 		cloud.reset(new ccPointCloud("Grid2FWF"));
-		ccScalarField* intensitySF = new ccScalarField(LAS_FIELD_NAMES[LAS_INTENSITY]);
+		ccScalarField* intensitySF = new ccScalarField(LasNames::Intensity);
 		cloud->addScalarField(intensitySF);
 		ccScalarField* returnNumberSF = 0;
 		if (maxReturnCount > 1)
 		{
-			returnNumberSF = new ccScalarField(LAS_FIELD_NAMES[LAS_NUMBER_OF_RETURNS]);
+			returnNumberSF = new ccScalarField(LasNames::ReturnNumber);
 			cloud->addScalarField(returnNumberSF);
 		}
 		if (	!cloud->reserve(static_cast<unsigned>(detectedPeaks.size()))
