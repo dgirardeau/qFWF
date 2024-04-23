@@ -145,9 +145,8 @@ bool ComputeOrthoWFDialog::setCloud(ccPointCloud* cloud, ccProgressDialog* pDlg/
 
 void ComputeOrthoWFDialog::ResetVlrsUsingOnlyOneDescriptor(const ccPointCloud* src, ccPointCloud* dst, const WaveformDescriptor& descriptor)
 {
-	// get LAS.vlrs of the source, copy it and reset the vlrs field
-	LasVlr vlrs(src->metaData()["LAS.vlrs"].value<LasVlr>());
-	vlrs.vlrs.clear();
+	// create a new Variable Length Register object
+	LasVlr lasVlr;
 
 	// convert descriptor to vlr
 	laszip_vlr_struct vlr;
@@ -177,8 +176,8 @@ void ComputeOrthoWFDialog::ResetVlrsUsingOnlyOneDescriptor(const ccPointCloud* s
 	*digitizerGain = descriptor.digitizerGain; // copy digitizer gain
 	*digitizerOffset = descriptor.digitizerOffset; // copy digitizer offset
 
-	vlrs.vlrs.push_back(vlr); // add vlr to vlrs
-	dst->setMetaData("LAS.vlrs", QVariant::fromValue(vlrs)); // update the value of LAS.vlr
+	lasVlr.vlrs.push_back(vlr); // add vlr to vlrs
+	dst->setMetaData("LAS.vlrs", QVariant::fromValue(lasVlr)); // update the value of LAS.vlr
 }
 
 void ComputeOrthoWFDialog::editBox()
