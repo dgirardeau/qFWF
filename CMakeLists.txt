@@ -17,6 +17,7 @@ if (INSTALL_QFWF_PLUGIN)
 		${CMAKE_CURRENT_LIST_DIR}/../../core/IO/qLASIO/src/LasVlr.cpp
 		${CMAKE_CURRENT_LIST_DIR}/../../core/IO/qLASIO/src/LasDetails.cpp
 		${CMAKE_CURRENT_LIST_DIR}/../../core/IO/qLASIO/src/LasScalarField.cpp
+		${CMAKE_CURRENT_LIST_DIR}/../../core/IO/qLASIO/src/CopcLoader.cpp
 		${CMAKE_CURRENT_LIST_DIR}/../../core/IO/qLASIO/include/LasVlr.h
 	)
 	target_include_directories( ${PROJECT_NAME} PRIVATE
