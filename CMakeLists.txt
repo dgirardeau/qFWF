@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.5)
 
 option( INSTALL_QFWF_PLUGIN "Check to install the qFWF plugin" OFF )
 
