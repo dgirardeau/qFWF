@@ -53,16 +53,13 @@ if (INSTALL_QFWF_PLUGIN)
 			${CC_UI_LIST}
 	)
 	
-	#we also need Eigen (for Levenberg-Marquardt optimization, etc.)
+	# EIGEN
 	set( EIGEN_ROOT_DIR "" CACHE PATH "Eigen root (contains the Eigen directory)" )
 	if ( NOT EIGEN_ROOT_DIR )
 		message( SEND_ERROR "No Eigen root directory specified (EIGEN_ROOT_DIR)" )
 	endif()
 
-    #include( CMakePluginTemplate )
-	#include( ../../CMakePluginTpl.cmake )
-
-    set_target_properties( ${PROJECT_NAME} PROPERTIES
+	set_target_properties( ${PROJECT_NAME} PROPERTIES
         # FIXME Remove after everything has moved to targets
         AUTOUIC_SEARCH_PATHS "${CloudCompare_SOURCE_DIR}/ui_templates;${CMAKE_CURRENT_SOURCE_DIR}/ui"
     )
