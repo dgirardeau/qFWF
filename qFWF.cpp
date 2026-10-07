@@ -195,7 +195,7 @@ void qFWF::doConvertWFToCloudAction()
 	s_minAplitude = dialog.minAmplitudeDoubleSpinBox->value();
 
 	//shall we use the return numbers?
-	CCCoreLib::ScalarField* returnNumbers = nullptr;
+	CCCoreLib::ScalarField::Shared returnNumbers;
 	if (s_useOnlyFirstEcho && rnSFIndex >= 0)
 	{
 		returnNumbers = cloud->getScalarField(rnSFIndex);
@@ -277,7 +277,7 @@ void qFWF::doConvertWFToCloudAction()
 		QCoreApplication::processEvents();
 
 		ccPointCloud* newCloud = new ccPointCloud(cloud->getName() + QString(".fwf(>%1)").arg(s_minAplitude));
-		ccScalarField* amplitudes = new ccScalarField("Amplitudes");
+		ccScalarField::Shared amplitudes = std::make_shared<ccScalarField>("Amplitudes");
 		newCloud->addScalarField(amplitudes);
 
 		if (!newCloud->reserve(static_cast<unsigned>(valueCount)))
