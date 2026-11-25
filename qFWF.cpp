@@ -195,7 +195,7 @@ void qFWF::doConvertWFToCloudAction()
 	s_minAplitude = dialog.minAmplitudeDoubleSpinBox->value();
 
 	//shall we use the return numbers?
-	CCCoreLib::ScalarField* returnNumbers = nullptr;
+	CCCoreLib::ScalarField::Shared returnNumbers;
 	if (s_useOnlyFirstEcho && rnSFIndex >= 0)
 	{
 		returnNumbers = cloud->getScalarField(rnSFIndex);
@@ -277,7 +277,7 @@ void qFWF::doConvertWFToCloudAction()
 		QCoreApplication::processEvents();
 
 		ccPointCloud* newCloud = new ccPointCloud(cloud->getName() + QString(".fwf(>%1)").arg(s_minAplitude));
-		ccScalarField* amplitudes = new ccScalarField("Amplitudes");
+		ccScalarField::Shared amplitudes = std::make_shared<ccScalarField>("Amplitudes");
 		newCloud->addScalarField(amplitudes);
 
 		if (!newCloud->reserve(static_cast<unsigned>(valueCount)))
@@ -556,11 +556,11 @@ void qFWF::doTestPeakExtraction()
 			QTextStream stream(&file);
 			stream.setRealNumberPrecision(6);
 			stream.setRealNumberNotation(QTextStream::FixedNotation);
-			stream << "time(ps);original;smoothed;synthetic;peaks;peaks_pos;peaks_sigma" << endl;
+			stream << "time(ps);original;smoothed;synthetic;peaks;peaks_pos;peaks_sigma" << Qt::endl;
 
 			for (uint32_t i = 0; i < values.size(); ++i)
 			{
-				stream << i * w.descriptor().samplingRate_ps << ";" << values[i] << ";" << smoothValues[i] << ";" << syntheticValues[i] << ";" << peakValues[i] << "; " << peakPos[i] << "; " << peakSigma[i] << endl;
+				stream << i * w.descriptor().samplingRate_ps << ";" << values[i] << ";" << smoothValues[i] << ";" << syntheticValues[i] << ";" << peakValues[i] << "; " << peakPos[i] << "; " << peakSigma[i] << Qt::endl;
 			}
 
 			file.close();

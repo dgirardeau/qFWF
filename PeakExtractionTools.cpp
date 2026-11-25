@@ -77,7 +77,7 @@ ccPointCloud* PeakExtractionTools::ExtractNewPeaks(	const ccPointCloud* inputClo
 	}
 
 	//output cloud
-	QScopedPointer<ccPointCloud> outputCloud(0);
+	std::unique_ptr<ccPointCloud> outputCloud;
 
 	//now for the conversion process
 	try
@@ -204,12 +204,12 @@ ccPointCloud* PeakExtractionTools::ExtractNewPeaks(	const ccPointCloud* inputClo
 		detectedPeaks.resize(peakCount);
 
 		outputCloud.reset(new ccPointCloud(inputCloud->getName() + ".reprocessed"));
-		ccScalarField* intensitySF = new ccScalarField(LAS_FIELD_NAMES[LAS_INTENSITY]);
+		ccScalarField::Shared intensitySF = std::make_shared<ccScalarField>(LAS_FIELD_NAMES[LAS_INTENSITY]);
 		outputCloud->addScalarField(intensitySF);
-		ccScalarField* returnNumberSF = 0;
+		ccScalarField::Shared returnNumberSF;
 		if (maxReturnCount > 1)
 		{
-			returnNumberSF = new ccScalarField(LAS_FIELD_NAMES[LAS_NUMBER_OF_RETURNS]);
+			returnNumberSF = std::make_shared<ccScalarField>(LAS_FIELD_NAMES[LAS_NUMBER_OF_RETURNS]);
 			outputCloud->addScalarField(returnNumberSF);
 		}
 		if (	!outputCloud->reserve(static_cast<unsigned>(toProcess.size() * maxReturnCount))
@@ -287,5 +287,5 @@ ccPointCloud* PeakExtractionTools::ExtractNewPeaks(	const ccPointCloud* inputClo
 		return 0;
 	}
 
-	return outputCloud.take();
+	return outputCloud.release();
 }

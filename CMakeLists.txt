@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.5)
 
 option( INSTALL_QFWF_PLUGIN "Check to install the qFWF plugin" OFF )
 
@@ -9,6 +9,21 @@ if (INSTALL_QFWF_PLUGIN)
 
 	AddPlugin( NAME ${PROJECT_NAME} )
 	
+	list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+	find_package(LASzip MODULE REQUIRED)
+	target_link_libraries(${PROJECT_NAME} LASzip::LASzip)
+
+	target_sources( ${PROJECT_NAME} PRIVATE
+		${CMAKE_CURRENT_LIST_DIR}/../../core/IO/qLASIO/src/LasVlr.cpp
+		${CMAKE_CURRENT_LIST_DIR}/../../core/IO/qLASIO/src/LasDetails.cpp
+		${CMAKE_CURRENT_LIST_DIR}/../../core/IO/qLASIO/src/LasScalarField.cpp
+		${CMAKE_CURRENT_LIST_DIR}/../../core/IO/qLASIO/src/CopcLoader.cpp
+		${CMAKE_CURRENT_LIST_DIR}/../../core/IO/qLASIO/include/LasVlr.h
+	)
+	target_include_directories( ${PROJECT_NAME} PRIVATE
+		${CMAKE_CURRENT_LIST_DIR}/../../core/IO/qLASIO/include
+	)
+
 	include( CMakePolicies NO_POLICY_SCOPE )
 
 	#As we are going to re-use several components of the main qCC project
@@ -38,16 +53,13 @@ if (INSTALL_QFWF_PLUGIN)
 			${CC_UI_LIST}
 	)
 	
-	#we also need Eigen (for Levenberg-Marquardt optimization, etc.)
+	# EIGEN
 	set( EIGEN_ROOT_DIR "" CACHE PATH "Eigen root (contains the Eigen directory)" )
 	if ( NOT EIGEN_ROOT_DIR )
 		message( SEND_ERROR "No Eigen root directory specified (EIGEN_ROOT_DIR)" )
 	endif()
 
-    #include( CMakePluginTemplate )
-	#include( ../../CMakePluginTpl.cmake )
-
-    set_target_properties( ${PROJECT_NAME} PROPERTIES
+	set_target_properties( ${PROJECT_NAME} PROPERTIES
         # FIXME Remove after everything has moved to targets
         AUTOUIC_SEARCH_PATHS "${CloudCompare_SOURCE_DIR}/ui_templates;${CMAKE_CURRENT_SOURCE_DIR}/ui"
     )

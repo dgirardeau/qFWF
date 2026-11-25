@@ -23,8 +23,8 @@
 //plugins
 #include <ccMainAppInterface.h>
 
-//qPDALIO
-#include "../../core/IO/qPDALIO/include/LASFields.h"
+//qLASIO
+#include "LasDetails.h"
 
 //qCC_db
 #include <ccPointCloud.h>
@@ -81,8 +81,8 @@ ccPointCloud* OrthoWFTools::ConvertGridToGridCloud(	const FWFGrid& grid,
 	ccPointCloud* cloud = 0;
 	{
 		cloud = new ccPointCloud("fwf_grid");
-		ccScalarField* amplitudes = new ccScalarField("Mean amplitude");
-		ccScalarField* stdDev = new ccScalarField("Amplitude std. dev.");
+		ccScalarField::Shared amplitudes = std::make_shared<ccScalarField>("Mean amplitude");
+		ccScalarField::Shared stdDev     = std::make_shared<ccScalarField>("Amplitude std. dev.");
 		//ccScalarField* weights = new ccScalarField("Weights");
 
 		cloud->addScalarField(amplitudes);
@@ -185,7 +185,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 		return nullptr;
 	}
 
-	QScopedPointer<ccPointCloud> cloud(0);
+	std::unique_ptr<ccPointCloud> cloud;
 
 	//now for the conversion process
 	try
@@ -333,12 +333,12 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 		
 		//reserve memory for the points
 		cloud.reset(new ccPointCloud("Grid2FWF"));
-		ccScalarField* intensitySF = new ccScalarField(LAS_FIELD_NAMES[LAS_INTENSITY]);
+		ccScalarField::Shared intensitySF = std::make_shared<ccScalarField>(LasNames::Intensity);
 		cloud->addScalarField(intensitySF);
-		ccScalarField* returnNumberSF = 0;
+		ccScalarField::Shared returnNumberSF;
 		if (maxReturnCount > 1)
 		{
-			returnNumberSF = new ccScalarField(LAS_FIELD_NAMES[LAS_NUMBER_OF_RETURNS]);
+			returnNumberSF = std::make_shared<ccScalarField>(LasNames::ReturnNumber);
 			cloud->addScalarField(returnNumberSF);
 		}
 		if (	!cloud->reserve(static_cast<unsigned>(detectedPeaks.size()))
@@ -370,7 +370,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 		}
 
 		//FWF data block
-		QScopedPointer<ccPointCloud::FWFDataContainer> fwfData(new ccPointCloud::FWFDataContainer);
+		std::unique_ptr<ccPointCloud::FWFDataContainer> fwfData = std::make_unique<ccPointCloud::FWFDataContainer>();
 
 		if (pDlg)
 		{
@@ -552,7 +552,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 			}
 		}
 
-		cloud->fwfData() = ccPointCloud::SharedFWFDataContainer(fwfData.take());
+		cloud->fwfData() = ccPointCloud::SharedFWFDataContainer(fwfData.release());
 	}
 	catch (const std::bad_alloc&)
 	{
@@ -577,7 +577,7 @@ ccPointCloud* OrthoWFTools::ConvertGridToFWFCloud(	const FWFGrid& grid,
 		}
 	}
 
-	return cloud.take();
+	return cloud.release();
 }
 
 ccBBox OrthoWFTools::ComputeFWFBox(ccPointCloud* cloud, ccProgressDialog* pDlg/*=0*/)
